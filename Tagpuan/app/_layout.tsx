@@ -7,12 +7,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function loadFonts() {
-      await Font.loadAsync({
-        'Moderna-Regular': require('../assets/fonts/Moderna-Regular.ttf'),
-      });
-      setFontsLoaded(true);
+      try {
+        await Font.loadAsync({
+          'Moderna-Regular': require('../assets/fonts/Moderna-Regular.ttf'),
+        });
+        console.log('Fonts loaded successfully.');
+        setFontsLoaded(true);
+      } catch (error) {
+        console.error('Error loading fonts', error);
+      }
     }
-  
     loadFonts();
   }, []);  
 

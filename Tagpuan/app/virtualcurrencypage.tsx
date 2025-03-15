@@ -15,7 +15,7 @@ export default function App() {
       <View style={styles.header}>
         {/* Title */}
         <Text style={styles.title}>
-          Buyer's Market
+          VIRTUAL CURRENCY
         </Text>
 
         {/* Back Button */}
@@ -23,47 +23,49 @@ export default function App() {
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>
-
+      
       <StatusBar style="auto" />
     </LinearGradient>
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 50,
-  },
-  header: {
-    width: '100%',
-    alignItems: 'center', // Center title horizontally
-    justifyContent: 'center',
-    position: 'relative',
-    paddingHorizontal: 20,
-  },
-  title: {
-    color: '#DDB771',
-    fontFamily: theme.fonts.regular,
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    position: 'absolute',
-    right: 20,
-    top: 0,
-    borderWidth: 2,
-    borderColor: '#DDB771',
-    borderRadius: 4,
-    width: 40, // Fixed size for square shape
-    height: 40,
-    alignItems: 'center', // Center text horizontally
-    justifyContent: 'center', // Center text vertically
-  },
-  backText: {
-    color: '#DDB771',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      paddingTop: 50,
+    },
+    header: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      paddingHorizontal: 20,
+      marginBottom: 20,
+    },
+    title: {
+      color: '#DDB771',
+      fontFamily: theme.fonts.regular,
+      fontSize: 24,
+      fontWeight: 'bold',
+    },
+    backButton: {
+      position: 'absolute',
+      right: 20,
+      top: 0,
+      borderWidth: 2,
+      borderColor: '#DDB771',
+      borderRadius: 4,
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backText: {
+      color: '#DDB771',
+      fontSize: 24,
+      fontWeight: 'bold',
+    },
 });
