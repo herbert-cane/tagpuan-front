@@ -1,39 +1,36 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
+import { useEffect, useState } from 'react';
+import * as Font from 'expo-font';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+import theme from '../app/theme';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    async function loadFonts() {
+      await Font.loadAsync({
+        'Moderna-Regular': require('../assets/fonts/Moderna-Regular.ttf'),
+      });
+      setFontsLoaded(true);
     }
-  }, [loaded]);
+  
+    loadFonts();
+  }, []);  
 
-  if (!loaded) {
-    return null;
-  }
+  if (!fontsLoaded) return null;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <LinearGradient
+      colors={[
+        theme.colors.gradientStart, 
+        theme.colors.gradientMiddle1,
+        theme.colors.gradientMiddle2,
+        theme.colors.gradientEnd
+      ]}
+      style={{ flex: 1 }}
+    >
+      <Stack />
+    </LinearGradient>
   );
 }
