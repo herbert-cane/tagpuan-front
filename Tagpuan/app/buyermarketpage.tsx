@@ -1,7 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'react-native';
 import theme from '../constants/theme';
 
 export default function App() {
@@ -20,7 +19,7 @@ export default function App() {
       {/* Title + Button Container */}
       <View style={styles.header}>
         {/* Title */}
-        <Text style={styles.title}>BUYER'S MARKET</Text>
+        <Text style={styles.title}>CONSUMER MARKET</Text>
 
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
@@ -28,8 +27,11 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      {/* Body */}
-      <View style={styles.body}>
+      {/* Body (Make it Scrollable) */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer} // Ensures proper alignment and padding
+        showsVerticalScrollIndicator={false} // Hides scrollbar
+      >
         {/* First Row */}
         <View style={styles.containerRow}>
           <TouchableOpacity style={styles.box} onPress={() => handlePress(1)}>
@@ -37,13 +39,11 @@ export default function App() {
               <View style={styles.textContainer}>
                 <Text style={styles.boxText}>30% Off</Text>
               </View>
-            
               <Image
                 source={require('../assets/images/promo-code.png')}
                 style={styles.image}
                 resizeMode="contain"
               />
-
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -55,13 +55,11 @@ export default function App() {
               <View style={styles.textContainer}>
                 <Text style={styles.boxText}>10% Off</Text>
               </View>
-
               <Image
                 source={require('../assets/images/promo-code.png')}
                 style={styles.image}
                 resizeMode="contain"
               />
-
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -76,13 +74,11 @@ export default function App() {
               <View style={styles.textContainer}>
                 <Text style={styles.boxText}>50% Off</Text>
               </View>
-
               <Image
                 source={require('../assets/images/promo-code.png')}
                 style={styles.image}
                 resizeMode="contain"
               />
-
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -94,13 +90,11 @@ export default function App() {
               <View style={styles.textContainer}>
                 <Text style={styles.boxText}>Crop Management Course</Text>
               </View>
-
               <Image
                 source={require('../assets/images/promo-code.png')}
                 style={styles.image}
                 resizeMode="contain"
               />
-
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -115,13 +109,11 @@ export default function App() {
               <View style={styles.textContainer}>
                 <Text style={styles.boxText}>Food Processing Course</Text>
               </View>
-
               <Image
                 source={require('../assets/images/promo-code.png')}
                 style={styles.image}
                 resizeMode="contain"
               />
-
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -130,24 +122,21 @@ export default function App() {
 
           <TouchableOpacity style={styles.box} onPress={() => handlePress(6)}>
             <View style={styles.content}>
-
               <View style={styles.textContainer}>
                 <Text style={styles.boxText}>Produce Transportation Course</Text>
               </View>
-
               <Image
                 source={require('../assets/images/promo-code.png')}
                 style={styles.image}
                 resizeMode="contain"
               />
-
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
             </View>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
       <StatusBar style="auto" />
     </LinearGradient>
@@ -170,10 +159,11 @@ const styles = StyleSheet.create({
     marginBottom: 56,
   },
   title: {
+    marginTop: 8,
+    letterSpacing: 1,
     color: '#DDB771',
     fontFamily: theme.fonts.regular,
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
   },
   backButton: {
     position: 'absolute',
@@ -192,13 +182,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  body: {
-    gap: 20, // Gap between rows
+  scrollContainer: {
+    paddingBottom: 50, // Prevent content from being cut off
+    alignItems: 'center',
+    gap: 20,
   },
   containerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 20, // Gap between boxes in the same row
+    gap: 20,
   },
   box: {
     backgroundColor: '#DDB771',
@@ -210,11 +202,11 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    justifyContent: 'center', // Vertical and horizontal centering
-    gap: 5, // Small gap between discount text and highlight
+    justifyContent: 'center',
+    gap: 5,
   },
   textContainer: {
-    height: 40, // Fixed height for alignment
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -231,8 +223,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   image: {
-    width: 60, // Width of the image
-    height: 60, // Height of the image
-    marginVertical: 5, // Spacing between text and image
+    width: 60,
+    height: 60,
+    marginVertical: 5,
   },
 });
