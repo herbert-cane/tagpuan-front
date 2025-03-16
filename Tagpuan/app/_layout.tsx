@@ -10,6 +10,7 @@ export default function RootLayout() {
       try {
         await Font.loadAsync({
           'Moderna-Regular': require('../assets/fonts/Moderna-Regular.ttf'),
+          'NovaSquare-Regular': require('../assets/fonts/NovaSquare-Regular.ttf'),
         });
         console.log('Fonts loaded successfully.');
         setFontsLoaded(true);

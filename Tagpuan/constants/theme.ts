@@ -8,6 +8,7 @@ const theme = {
     },
     fonts: {
       regular: 'Moderna-Regular',
+      novaSquare: 'NovaSquare-Regular',
     },
   };
   

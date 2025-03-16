@@ -44,6 +44,7 @@ export default function App() {
                 style={styles.image}
                 resizeMode="contain"
               />
+              <Text style={styles.boxText}>buy</Text>
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -60,6 +61,7 @@ export default function App() {
                 style={styles.image}
                 resizeMode="contain"
               />
+              <Text style={styles.boxText}>buy</Text>
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -79,6 +81,7 @@ export default function App() {
                 style={styles.image}
                 resizeMode="contain"
               />
+              <Text style={styles.boxText}>buy</Text>
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -95,6 +98,7 @@ export default function App() {
                 style={styles.image}
                 resizeMode="contain"
               />
+              <Text style={styles.boxText}>buy</Text>
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -114,6 +118,7 @@ export default function App() {
                 style={styles.image}
                 resizeMode="contain"
               />
+              <Text style={styles.boxText}>buy</Text>
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
@@ -130,6 +135,7 @@ export default function App() {
                 style={styles.image}
                 resizeMode="contain"
               />
+              <Text style={styles.boxText}>buy</Text>
               <View style={styles.highlight}>
                 <Text style={styles.boxText}>30 Agricoin</Text>
               </View>
