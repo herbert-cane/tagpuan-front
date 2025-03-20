@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'react-native';
@@ -38,7 +39,7 @@ const listings = [
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>DASHBOARD</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
             <Text style={styles.backText}>{"<"}</Text>
           </TouchableOpacity>
         </View>

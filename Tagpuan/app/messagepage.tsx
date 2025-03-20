@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import { useState, useRef } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
+import theme from '../constants/theme';
 
 export default function MessagePage() {
   const [messages, setMessages] = useState([
@@ -54,7 +56,7 @@ export default function MessagePage() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>MESSAGE</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/messagelistpage')}>
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
-  title: { marginTop: 8, letterSpacing: 1, color: '#DDB771', fontSize: 20 },
+  title: { marginTop: 8, letterSpacing: 1, color: '#DDB771', fontSize: 20, fontFamily: theme.fonts.regular },
   backButton: {
     position: 'absolute',
     right: 20,

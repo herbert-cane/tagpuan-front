@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
@@ -88,15 +89,17 @@ const TopContactCard = ({ contact }) => (
 );
 
 // Vertical list for messages
-const ContactCard = ({ contact }) => (
-  <View style={styles.contactCard}>
-    <Image source={contact.image} style={styles.profilePic} />
-    <View style={styles.contactInfo}>
-      <Text style={styles.contactName}>{contact.name}</Text>
-      <Text style={styles.contactMessage}>{contact.message}</Text>
+const ContactCard = ({ contact }: { contact: (typeof contacts)[0] }) => (
+  <TouchableOpacity onPress={() => router.push(`/messagepage?id=${contact.id}&name=${contact.name}`)}>
+    <View style={styles.contactCard}>
+      <Image source={contact.image} style={styles.profilePic} />
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactName}>{contact.name}</Text>
+        <Text style={styles.contactMessage}>{contact.message}</Text>
+      </View>
+      {contact.isOnline && <View style={styles.onlineIndicator} />}
     </View>
-    {contact.isOnline && <View style={styles.onlineIndicator} />}
-  </View>
+  </TouchableOpacity>
 );
 
 export default function MessageListPage() {
@@ -110,21 +113,22 @@ export default function MessageListPage() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>MESSAGES</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Top Contacts Section */}
       <Text style={styles.sectionTitle}>Contacts</Text>
-      <FlatList
-        data={contacts}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => <TopContactCard contact={item} />}
-        contentContainerStyle={styles.topContactsList}
-      />
+      <view style={styles.contactsTop}>
+        <FlatList
+          data={contacts}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => <TopContactCard contact={item} />}
+        />
+      </view>
 
       {/* Message List */}
       <FlatList
@@ -180,9 +184,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 24,
   },
-  topContactsList: {
-    paddingTop: 24,
-    paddingBottom: 56,
+  contactsTop: {
+    paddingBottom: 24,
   },
   topContactCard: {
     alignItems: 'center',
@@ -200,7 +203,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     width: 70,
-    paddingBottom: 56,
   },
   // Online Indicator
   onlineIndicator: {

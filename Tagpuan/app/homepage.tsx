@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
@@ -46,13 +47,13 @@ export default function Homepage() {
         </TouchableOpacity>
 
         {/* Dashboard */}
-        <TouchableOpacity style={styles.navItem} onPress={() => console.log('Dashboard clicked')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
           <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>DASHBOARD</Text>
         </TouchableOpacity>
 
         {/* Message */}
-        <TouchableOpacity style={styles.navItem} onPress={() => console.log('Message clicked')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
           <FontAwesome name="comments" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>MESSAGE</Text>
         </TouchableOpacity>
