@@ -1,18 +1,38 @@
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, TextInput, Image, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
 
 const applicants = [
-  { id: '1', name: 'Juan Dela Cruz', firstName: 'Juan', lastName: 'Dela Cruz', username: 'Juan', email: 'juandelacruz@gmail.com', role: 'Farmer', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '2', name: 'Sandra Xu Yen', firstName: 'Sandra', lastName: 'Xu Yen', username: 'Sandra', email: 'sandraxuyen@gmail.com', role: 'Merchant', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '3', name: 'Ate Gina', firstName: 'Gina', lastName: '', username: 'Gina', email: 'ategina@gmail.com', role: 'Vendor', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '4', name: 'Bossing Tom', firstName: 'Tom', lastName: '', username: 'Tom', email: 'bossingtom@gmail.com', role: 'Supplier', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '5', name: 'Manang Rina', firstName: 'Rina', lastName: '', username: 'Rina', email: 'manangrina@gmail.com', role: 'Farmer', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '1', name: 'Juan Dela Cruz', firstName: 'Juan', middleName: 'One', lastName: 'Dela Cruz', username: 'Juan', email: 'juandelacruz@gmail.com', role: 'Farmer', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '2', name: 'Sandra Xu Yen', firstName: 'Sandra', middleName: 'Two', lastName: 'Xu Yen', username: 'Sandra', email: 'sandraxuyen@gmail.com', role: 'Merchant', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '3', name: 'Ate Gina', firstName: 'Gina', middleName: 'Three', lastName: '', username: 'Gina', email: 'ategina@gmail.com', role: 'Vendor', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '4', name: 'Bossing Tom', firstName: 'Tom', middleName: 'Four', lastName: '', username: 'Tom', email: 'bossingtom@gmail.com', role: 'Supplier', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '5', name: 'Manang Rina', firstName: 'Rina', middleName: 'Five', lastName: '', username: 'Rina', email: 'manangrina@gmail.com', role: 'Farmer', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
 ];
 
-const ApplicantCard = ({ applicant, isSelected, onPress }) => (
+type Applicant = {
+  id: string;
+  name: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  role: string;
+  idFrontImage: any;
+  idBackImage: any;
+};
+
+type ApplicantCardProps = {
+  applicant: Applicant;
+  isSelected: boolean;
+  onPress: () => void;
+};
+
+const ApplicantCard: React.FC<ApplicantCardProps> = ({ applicant, isSelected, onPress }) => (
   <TouchableOpacity
     style={[styles.applicantCard, isSelected && styles.selectedCard]}
     onPress={onPress}
@@ -37,7 +57,7 @@ export default function VerificationPage() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>VERIFY</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>
@@ -74,6 +94,11 @@ export default function VerificationPage() {
         <TextInput
           style={styles.detailInput}
           value={`First Name: ${selectedApplicant?.firstName || ''}`}
+          editable={false}
+        />
+        <TextInput
+          style={styles.detailInput}
+          value={`Middle Name: ${selectedApplicant?.middleName || ''}`}
           editable={false}
         />
         <TextInput

@@ -77,8 +77,16 @@ const contacts = [
   },
 ];
 
+interface Contact {
+  id: string;
+  name: string;
+  message: string;
+  image: any;
+  isOnline: boolean;
+}
+
 // Horizontal list for top contacts
-const TopContactCard = ({ contact }) => (
+const TopContactCard = ({ contact }: { contact: Contact }) => (
   <View style={styles.topContactCard}>
     <Image source={contact.image} style={styles.topProfilePic} />
     {contact.isOnline && <View style={styles.onlineIndicator} />}
