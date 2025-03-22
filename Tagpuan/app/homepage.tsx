@@ -22,10 +22,12 @@ export default function Homepage() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Image
-          source={require('../assets/images/react-logo.png')}
-          style={styles.profilePic}
-        />
+        <TouchableOpacity onPress={() => router.push('/profilepage')}>
+          <Image
+            source={require('../assets/images/react-logo.png')}
+            style={styles.profilePic}
+          />
+        </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>HOMEPAGE</Text>
         </View>

@@ -18,7 +18,7 @@ export default function MessagePage() {
 
   const [inputMessage, setInputMessage] = useState('');
 
-  const flatListRef = useRef(null);
+  const flatListRef = useRef<FlatList<any>>(null);
 
   // ✅ Handle Sending Messages
   const handleSendMessage = () => {
@@ -38,8 +38,8 @@ export default function MessagePage() {
   const handleAttachment = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({});
-      if (result.type !== 'cancel') {
-        console.log('File selected:', result);
+      if (!result.canceled) {
+        console.log('File selected:', result.assets[0]);
       }
     } catch (error) {
       console.log('Error picking document:', error);
