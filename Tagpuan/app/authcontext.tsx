@@ -1,44 +1,26 @@
-import React, { createContext, useState, useEffect } from "react";
-import * as SecureStore from "expo-secure-store";
+import { createContext, useState, ReactNode } from 'react';
 
 interface AuthContextType {
-  token: string | null;
-  login: (newToken: string) => Promise<void>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(null);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    const loadToken = async () => {
-      try {
-        const storedToken = await SecureStore.getItemAsync("authToken");
-        console.log("Token retrieved from SecureStore:", storedToken);
-        if (storedToken) {
-          setToken(storedToken);
-        }
-      } catch (error) {
-        console.error("Error loading token:", error);
-      }
-    };
-    loadToken();
-  }, []);  
-
-  const login = async (newToken: string) => {
-    setToken(newToken);
-    await SecureStore.setItemAsync("authToken", newToken);
-  };
-
-  const logout = async () => {
-    setToken(null);
-    await SecureStore.deleteItemAsync("authToken");
+  const login = async (email: string, password: string) => {
+    try {
+      // Simulate an authentication request
+      console.log(`Logging in with ${email}`);
+      setUser({ email });
+    } catch (error) {
+      console.error((error as Error).message); // Fix for 'error' being 'unknown'
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, logout }}>
+    <AuthContext.Provider value={{ login }}>
       {children}
     </AuthContext.Provider>
   );

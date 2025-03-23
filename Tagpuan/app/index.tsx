@@ -17,6 +17,7 @@ export default function HomeScreen() {
       <Button title="Go to Swipe Page" onPress={() => router.push("/swipepage")} />
       <Button title="Go to Signup Page" onPress={() => router.push("/signuppage")} />
       <Button title="Go to Message Page" onPress={() => router.push("/messagepage")} />
+      <Button title="Go to Profile Page" onPress={() => router.push("/profilepage")} />
     </View>
   );
 }
