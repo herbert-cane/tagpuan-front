@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, TouchableOpacity, View, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
+import { router } from 'expo-router';
 
 export default function App() {
   // Example handler
@@ -22,7 +23,7 @@ export default function App() {
         <Text style={styles.title}>FARMERS MARKET</Text>
 
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>

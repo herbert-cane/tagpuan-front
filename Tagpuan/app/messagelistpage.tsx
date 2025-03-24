@@ -128,7 +128,7 @@ export default function MessageListPage() {
 
       {/* Top Contacts Section */}
       <Text style={styles.sectionTitle}>Contacts</Text>
-      <view style={styles.contactsTop}>
+      <View style={styles.contactsTop}>
         <FlatList
           data={contacts}
           keyExtractor={(item) => item.id}
@@ -136,7 +136,7 @@ export default function MessageListPage() {
           showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => <TopContactCard contact={item} />}
         />
-      </view>
+      </View>
 
       {/* Message List */}
       <FlatList

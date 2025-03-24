@@ -4,6 +4,8 @@ import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
+import { AuthContext } from './authcontext';
+import { useContext, useState } from 'react';
 
 const recentExports = [
   { id: '1', description: 'Contracted a deal with Juan Dela Cruz', date: '6 days ago' },
@@ -13,6 +15,23 @@ const recentExports = [
 ];
 
 export default function Homepage() {
+
+  const [showMore, setShowMore] = useState(false);
+  const { logout } = useContext(AuthContext) ?? {};
+
+  const handleLogout = async () => {
+    try {
+      if (logout) {
+        await logout(); // Call logout function from AuthContext
+        router.replace('/login'); // Redirect to login page
+      } else {
+        console.error('AuthContext is not available.');
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+  
   return (
     <LinearGradient
       style={styles.container}
@@ -30,6 +49,9 @@ export default function Homepage() {
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>HOMEPAGE</Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleLogout}>
+          <Text style={styles.backText}>{"Logout"}</Text>
+        </TouchableOpacity>
         </View>
       </View>
 
@@ -43,7 +65,7 @@ export default function Homepage() {
       {/* Navigation Icons */}
       <View style={styles.navContainer}>
         {/* Finder */}
-        <TouchableOpacity style={styles.navItem} onPress={() => console.log('Finder clicked')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
           <FontAwesome name="search" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>FINDER</Text>
         </TouchableOpacity>
@@ -61,15 +83,34 @@ export default function Homepage() {
         </TouchableOpacity>
       </View>
 
-      {/* See More Button */}
-    <View style={styles.seeMoreContainer}>
-        <View style={styles.line} />
-        <TouchableOpacity onPress={() => console.log('See More clicked')}>
-            <Text style={styles.seeMoreText}>SEE MORE</Text>
-        </TouchableOpacity>
-        <View style={styles.line} />
-    </View>
+      {/* Hidden Buttons & See More Button Together */}
+      <View>
+        {/* Hidden Buttons (Market & Request) */}
+        {showMore && (
+          <View style={styles.hiddenButtonsContainer}>
+            {/* Market */}
+            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}>
+              <FontAwesome name="shopping-basket" size={28} color="#FFFFFF" />
+              <Text style={styles.navText}>MARKET</Text>
+            </TouchableOpacity>
 
+            {/* Request */}
+            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
+              <FontAwesome name="file" size={28} color="#FFFFFF" />
+              <Text style={styles.navText}>REQUEST</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* See More Button (Pushes Down When Expanded) */}
+        <View style={styles.seeMoreContainer}>
+          <View style={styles.line} />
+          <TouchableOpacity onPress={() => setShowMore(!showMore)}>
+            <Text style={styles.seeMoreText}>{showMore ? "SEE LESS" : "SEE MORE"}</Text>
+          </TouchableOpacity>
+          <View style={styles.line} />
+        </View>
+      </View>
 
     {/* Recent Exports Section */}
     <View style={styles.recentExportsContainer}>
@@ -108,6 +149,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
+  },
+  backButton: {
+    position: "absolute",
+    right: 20,
+    top: 0,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backText: {
+    color: "#DDB771",
+    fontSize: 14,
+    fontWeight: "bold",
+    textDecorationLine: "underline",
   },
   profilePic: {
     width: 40,
@@ -157,12 +212,17 @@ const styles = StyleSheet.create({
     borderColor: '#DDB771',
   },
   // 👉 Updated styles for See More Section
-seeMoreContainer: {
+  seeMoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 20,
   },
+  hiddenButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },  
   line: {
     flex: 1,
     height: 1,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as Font from "expo-font";
 import { Stack } from "expo-router";
-import { AuthProvider } from "../app/authcontext"; // Import AuthProvider
+import { AuthProvider } from "../app/authcontext";
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
