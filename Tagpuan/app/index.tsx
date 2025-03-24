@@ -17,6 +17,7 @@ import {
   Keyboard,
   Alert,
 } from "react-native";
+import { router } from "expo-router";
 
 export default function LoginScreen() {
   const { login } = useContext(AuthContext) ?? {}; // Get login function from AuthContext
@@ -111,7 +112,7 @@ export default function LoginScreen() {
                 </TouchableOpacity>
 
                 <Text style={styles.signupText}>Don't have an account?</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/signuppage')}>
                   <Text style={styles.signupLink}>SIGN UP</Text>
                 </TouchableOpacity>
               </View>
