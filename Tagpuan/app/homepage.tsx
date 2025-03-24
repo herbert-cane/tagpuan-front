@@ -1,11 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import { AuthContext } from './authcontext';
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
 const recentExports = [
   { id: '1', description: 'Contracted a deal with Juan Dela Cruz', date: '6 days ago' },
@@ -19,6 +19,11 @@ export default function Homepage() {
   const [showMore, setShowMore] = useState(false);
   const { logout } = useContext(AuthContext) ?? {};
 
+  const { token } = useContext(AuthContext)!;
+    const [userData, setUserData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const API_URL = "https://tagpuan-back.onrender.com/user/profile";
+
   const handleLogout = async () => {
     try {
       if (logout) {
@@ -31,7 +36,55 @@ export default function Homepage() {
       console.error('Logout failed:', error);
     }
   };
+
+  useEffect(() => {
+      if (token === null) {
+        setLoading(false);
+        return;
+      }
+    
+      const fetchUserProfile = async () => {
+        try {
+          console.log("Fetching profile with token:", token);
+    
+          const response = await fetch(API_URL, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+    
+          // console.log("Response status:", response.status);
+          const responseText = await response.text();
+          // console.log("Raw response text:", responseText);
+    
+          if (!response.ok) {
+            throw new Error(`Failed to fetch profile data: ${response.status} - ${responseText}`);
+          }
+    
+          const data = JSON.parse(responseText); // Convert raw text to JSON
+          // console.log("User data received:", data);
+          setUserData(data);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+    
+      fetchUserProfile();
+    }, [token]);
+     
   
+    if (loading) {
+      return <ActivityIndicator size="large" color="#08A045" />;
+    }
+  
+    if (!userData) {
+      return <Text>Error loading profile data</Text>;
+    }
+
   return (
     <LinearGradient
       style={styles.container}
@@ -57,9 +110,11 @@ export default function Homepage() {
 
       {/* Main Image */}
       <Image
-        source={require('../assets/images/main-image.png')}
-        style={styles.mainImage}
-        resizeMode="cover"
+        source={
+          userData.profile_picture
+            ? { uri: `data:image/png;base64,${userData.profile_picture}` }
+            : require("../assets/images/react-logo.png")
+        }
       />
 
       {/* Navigation Icons */}
