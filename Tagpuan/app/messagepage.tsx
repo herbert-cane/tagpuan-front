@@ -188,7 +188,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: '#0B6E4F',
-    outlineWidth: 0,
   },
   sendButton: { backgroundColor: '#6BBF59', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 18 },
   sendButtonText: { color: '#073B3A', fontSize: 14, fontWeight: 'bold' },

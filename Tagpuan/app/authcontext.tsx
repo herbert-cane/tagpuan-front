@@ -1,9 +1,10 @@
 import React, { createContext, useState, useEffect } from "react";
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
 
 interface AuthContextType {
   token: string | null;
-  login: (newToken: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -27,9 +28,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadToken();
   }, []);  
 
-  const login = async (newToken: string) => {
-    setToken(newToken);
-    await SecureStore.setItemAsync("authToken", newToken);
+  const login = async (username: string, password: string) => {
+    try {
+      const response = await fetch("https://tagpuan-back.onrender.com/user/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Login failed. Check credentials.");
+      }
+  
+      const data = await response.json();
+      if (data.accessToken) {
+        setToken(data.accessToken);
+        await SecureStore.setItemAsync("authToken", data.accessToken);
+        router.push('/homepage')
+        console.log("Token stored:", data.accessToken);
+      } else {
+        console.error("Token not found in response:", data);
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+    }
   };
 
   const logout = async () => {
@@ -43,3 +67,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
+
+export default AuthProvider;

@@ -29,16 +29,16 @@ const ProfilePage = () => {
           },
         });
   
-        console.log("Response status:", response.status);
+        // console.log("Response status:", response.status);
         const responseText = await response.text();
-        console.log("Raw response text:", responseText);
+        // console.log("Raw response text:", responseText);
   
         if (!response.ok) {
           throw new Error(`Failed to fetch profile data: ${response.status} - ${responseText}`);
         }
   
         const data = JSON.parse(responseText); // Convert raw text to JSON
-        console.log("User data received:", data);
+        // console.log("User data received:", data);
         setUserData(data);
       } catch (error) {
         console.error("Error fetching user data:", error);

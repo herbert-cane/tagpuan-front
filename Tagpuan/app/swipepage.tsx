@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import SwipeFilter from '../components/swipefilter';
 import theme from '@/constants/theme';
+import { router } from 'expo-router';
 
 // Define Profile Type
 type Profile = {
@@ -108,7 +109,7 @@ const SwipeCard: React.FC = () => {
           <Image source={require("../assets/images/Filter.png")} style={styles.filterIcon} resizeMode="contain" />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>TAGPUAN</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
           <Text style={styles.backText}>{'<'}</Text>
         </TouchableOpacity>
       </View>
