@@ -101,6 +101,7 @@ export default function Homepage() {
                 ? { uri: `data:image/png;base64,${userData.profile_picture}` }
                 : require("../assets/images/react-logo.png")
             }
+            style={styles.profilePic}
           />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
