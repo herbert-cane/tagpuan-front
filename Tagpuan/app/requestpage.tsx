@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Scroll
 import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -45,7 +46,7 @@ const MakeRequestScreen: React.FC = () => {
   return (
     <LinearGradient colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']} style={styles.container}>
       <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() => console.log('Go Back')}>
+        <TouchableOpacity style={styles.backButton} onPress={() =>router.push('/homepage')}>
           <Ionicons name="chevron-back" size={20} color="#DDB771" />
         </TouchableOpacity>
         <Text style={styles.title}>MAKE A REQUEST</Text>

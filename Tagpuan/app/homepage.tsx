@@ -81,22 +81,10 @@ export default function Homepage() {
           <FontAwesome name="comments" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>MESSAGE</Text>
         </TouchableOpacity>
+      </View>
 
-        {/* Message */}
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
-          <FontAwesome name="comments" size={28} color="#FFFFFF" />
-          <Text style={styles.navText}>MESSAGE</Text>
-        </TouchableOpacity>
-
-        {/* See More Button */}
-        <View style={styles.seeMoreContainer}>
-          <View style={styles.line} />
-          <TouchableOpacity onPress={() => setShowMore(!showMore)}>
-            <Text style={styles.seeMoreText}>{showMore ? "SEE LESS" : "SEE MORE"}</Text>
-          </TouchableOpacity>
-          <View style={styles.line} />
-        </View>
-
+      {/* Hidden Buttons & See More Button Together */}
+      <View>
         {/* Hidden Buttons (Market & Request) */}
         {showMore && (
           <View style={styles.hiddenButtonsContainer}>
@@ -113,8 +101,16 @@ export default function Homepage() {
             </TouchableOpacity>
           </View>
         )}
-    </View>
 
+        {/* See More Button (Pushes Down When Expanded) */}
+        <View style={styles.seeMoreContainer}>
+          <View style={styles.line} />
+          <TouchableOpacity onPress={() => setShowMore(!showMore)}>
+            <Text style={styles.seeMoreText}>{showMore ? "SEE LESS" : "SEE MORE"}</Text>
+          </TouchableOpacity>
+          <View style={styles.line} />
+        </View>
+      </View>
 
     {/* Recent Exports Section */}
     <View style={styles.recentExportsContainer}>
@@ -216,7 +212,7 @@ const styles = StyleSheet.create({
     borderColor: '#DDB771',
   },
   // 👉 Updated styles for See More Section
-seeMoreContainer: {
+  seeMoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
