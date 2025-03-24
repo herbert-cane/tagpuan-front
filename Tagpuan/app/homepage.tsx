@@ -28,7 +28,7 @@ export default function Homepage() {
     try {
       if (logout) {
         await logout(); // Call logout function from AuthContext
-        router.replace('/login'); // Redirect to login page
+        router.replace('../index'); // Redirect to login page
       } else {
         console.error('AuthContext is not available.');
       }
