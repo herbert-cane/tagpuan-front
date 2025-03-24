@@ -45,7 +45,7 @@ const Register = () => {
         <ScrollView contentContainerStyle={styles.scrollView}>
           
           {/* ✅ Back Button - Styled like Quests Page */}
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/')}>
             <Text style={styles.backText}>{"<"}</Text>
           </TouchableOpacity>
 

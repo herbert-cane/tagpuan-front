@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import QuestFilter from '../components/questfilter';
+import { router } from 'expo-router';
 
 const questsData = [
   { commodity: 'Chicken', contractType: 'Bulk', price: '90/kg', schedule: '2 wks', delivery: 'Sunshine Farms, Kalibo, Aklan' },
@@ -34,7 +35,7 @@ export default function QuestsPage() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.headerContainer}>
           <Text style={styles.title}>QUESTS</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => console.log('Back pressed')}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
             <Text style={styles.backText}>{'<'}</Text>
           </TouchableOpacity>
         </View>
