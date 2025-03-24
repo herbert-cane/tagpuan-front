@@ -96,8 +96,11 @@ export default function Homepage() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push('/profilepage')}>
           <Image
-            source={require('../assets/images/react-logo.png')}
-            style={styles.profilePic}
+            source={
+              userData.profile_picture
+                ? { uri: `data:image/png;base64,${userData.profile_picture}` }
+                : require("../assets/images/react-logo.png")
+            }
           />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
@@ -110,11 +113,9 @@ export default function Homepage() {
 
       {/* Main Image */}
       <Image
-        source={
-          userData.profile_picture
-            ? { uri: `data:image/png;base64,${userData.profile_picture}` }
-            : require("../assets/images/react-logo.png")
-        }
+        source={require('../assets/images/main-image.png')}
+        style={styles.mainImage}
+        resizeMode="cover"
       />
 
       {/* Navigation Icons */}
