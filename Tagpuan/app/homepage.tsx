@@ -22,13 +22,14 @@ export default function Homepage() {
   const [userData, setUserData] = useState<any>(null);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const API_URL = "https://tagpuan-back.onrender.com/user/profile";
+  
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const API_URL = `${apiUrl}/user/profile`;
 
   const handleLogout = async () => {
     try {
       if (logout) {
         await logout(); // Call logout function from AuthContext
-        router.replace('/'); // Redirect to index page
       } else {
         console.error('AuthContext is not available.');
       }
