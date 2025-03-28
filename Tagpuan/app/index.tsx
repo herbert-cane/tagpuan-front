@@ -54,7 +54,7 @@ export default function LoginScreen() {
             <View style={styles.container}>
               <Text style={styles.logo}>tagpuan</Text>
               <Text style={styles.tagline}>
-                for a better farming ecosystem{"\n"}in the Philippines{"\n"}(side to side)
+                for a better farming ecosystem{"\n"}in the Philippines{"\n"}
               </Text>
 
               {/* Email Input */}
