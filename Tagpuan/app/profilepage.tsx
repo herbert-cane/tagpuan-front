@@ -9,7 +9,9 @@ const ProfilePage = () => {
   const { token } = useContext(AuthContext)!;
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const API_URL = "https://tagpuan-back.onrender.com/user/profile";
+
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const API_URL = `${apiUrl}/user/profile`;
 
   useEffect(() => {
     if (token === null) {
@@ -49,7 +51,7 @@ const ProfilePage = () => {
   
     fetchUserProfile();
   }, [token]);
-   
+  
 
   if (loading) {
     return <ActivityIndicator size="large" color="#08A045" />;

@@ -95,7 +95,9 @@ const Register = () => {
     >
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollView}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          
+          {/* ✅ Back Button - Styled like Quests Page */}
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/')}>
             <Text style={styles.backText}>{"<"}</Text>
           </TouchableOpacity>
 

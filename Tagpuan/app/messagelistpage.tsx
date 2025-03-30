@@ -1,116 +1,84 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, Image } from 'react-native';
+import { useContext, useEffect, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
-
-const contacts = [
-  {
-    id: '1',
-    name: 'Juan Dela Cruz',
-    message: 'On the way na po yung orders niyo.',
-    image: require('../assets/images/react-logo.png'),
-    isOnline: true,
-  },
-  {
-    id: '2',
-    name: 'Bossing Tom',
-    message: 'Send ko po sa inyo bukas.',
-    image: require('../assets/images/main-image.png'),
-    isOnline: false,
-  },
-  {
-    id: '3',
-    name: 'Sandra Xu Yen',
-    message: 'Hello! Is this available?',
-    image: require('../assets/images/react-logo.png'),
-    isOnline: true,
-  },
-  {
-    id: '4',
-    name: 'Ate Gina',
-    message: 'On the way na po yung orders niyo.',
-    image: require('../assets/images/main-image.png'),
-    isOnline: true,
-  },
-  {
-    id: '5',
-    name: 'Manang Rina',
-    message: 'Sorry po, di po siya available.',
-    image: require('../assets/images/react-logo.png'),
-    isOnline: false,
-  },
-  {
-    id: '6',
-    name: 'Kuya Boy',
-    message: 'Tara, kita tayo mamaya.',
-    image: require('../assets/images/main-image.png'),
-    isOnline: true,
-  },
-  {
-    id: '7',
-    name: 'Aling Nena',
-    message: 'Saan mo nakuha yan?',
-    image: require('../assets/images/react-logo.png'),
-    isOnline: false,
-  },
-  {
-    id: '8',
-    name: 'Totoy',
-    message: 'Pasensya na, hindi ko pa nagagawa.',
-    image: require('../assets/images/main-image.png'),
-    isOnline: true,
-  },
-  {
-    id: '9',
-    name: 'Ka Pedro',
-    message: 'Meron pa bang stock?',
-    image: require('../assets/images/react-logo.png'),
-    isOnline: true,
-  },
-  {
-    id: '10',
-    name: 'Lola Biring',
-    message: 'Salamat sa tulong mo kanina.',
-    image: require('../assets/images/main-image.png'),
-    isOnline: false,
-  },
-];
+import { AuthContext } from './authcontext';
 
 interface Contact {
   id: string;
   name: string;
   message: string;
-  image: any;
+  image: string;
   isOnline: boolean;
 }
 
-// Horizontal list for top contacts
-const TopContactCard = ({ contact }: { contact: Contact }) => (
-  <View style={styles.topContactCard}>
-    <Image source={contact.image} style={styles.topProfilePic} />
-    {contact.isOnline && <View style={styles.onlineIndicator} />}
-    <Text style={styles.topContactName} numberOfLines={1}>
-      {contact.name}
-    </Text>
-  </View>
-);
-
-// Vertical list for messages
-const ContactCard = ({ contact }: { contact: (typeof contacts)[0] }) => (
-  <TouchableOpacity onPress={() => router.push(`/messagepage?id=${contact.id}&name=${contact.name}`)}>
-    <View style={styles.contactCard}>
-      <Image source={contact.image} style={styles.profilePic} />
-      <View style={styles.contactInfo}>
-        <Text style={styles.contactName}>{contact.name}</Text>
-        <Text style={styles.contactMessage}>{contact.message}</Text>
-      </View>
-      {contact.isOnline && <View style={styles.onlineIndicator} />}
-    </View>
-  </TouchableOpacity>
-);
-
 export default function MessageListPage() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const { token } = useContext(AuthContext)!;
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        if (!apiUrl) {
+          throw new Error("API URL is undefined. Check your environment variables.");
+        }
+        
+        const response = await fetch(`${apiUrl}/conversation`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+    
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+    
+        const data = await response.json();
+    
+        if (!Array.isArray(data)) {
+          throw new Error("Expected an array but got: " + JSON.stringify(data));
+        }
+    
+          const formattedContacts: Contact[] = data.map((conv: any) => {
+          const participant = conv.participants?.[0] || {};
+          const lastMessage = conv.messages?.length ? conv.messages[conv.messages.length - 1] : null;
+    
+          return {
+            id: conv._id,
+            name: `${participant.first_name ?? "Unknown"} ${participant.last_name ?? "User"}`,
+            message: lastMessage ? lastMessage.content : "No messages yet",
+            image: participant.profile_picture,
+            isOnline: participant.isOnline,
+          };
+        });
+    
+        setContacts(formattedContacts);
+      } catch (error) {
+        console.error("Error fetching contacts:", error);
+      } finally {
+        setLoading(false);
+      }
+    };      
+
+    fetchContacts();
+  }, []);
+
+  // Loading Indicator
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
+  }
+
   return (
     <LinearGradient
       style={styles.container}
@@ -128,15 +96,13 @@ export default function MessageListPage() {
 
       {/* Top Contacts Section */}
       <Text style={styles.sectionTitle}>Contacts</Text>
-      <View style={styles.contactsTop}>
-        <FlatList
-          data={contacts}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => <TopContactCard contact={item} />}
-        />
-      </View>
+      <FlatList
+        data={contacts}
+        keyExtractor={(item) => item.id}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        renderItem={({ item }) => <TopContactCard contact={item} />}
+      />
 
       {/* Message List */}
       <FlatList
@@ -150,6 +116,44 @@ export default function MessageListPage() {
     </LinearGradient>
   );
 }
+
+// Top Contact Card
+const TopContactCard = ({ contact }: { contact: Contact }) => (
+  <View style={styles.topContactCard}>
+    <Image 
+    source={
+      contact.image
+        ? { uri: `data:image/png;base64,${contact.image}` }
+        : require("../assets/images/react-logo.png")
+    }
+    
+    style={styles.topProfilePic} />
+    {contact.isOnline && <View style={styles.onlineIndicator} />}
+    <Text style={styles.topContactName} numberOfLines={1}>
+      {contact.name}
+    </Text>
+  </View>
+);
+
+// Contact Card
+const ContactCard = ({ contact }: { contact: Contact }) => (
+  <TouchableOpacity onPress={() => router.push(`/messagepage?conversationId=${contact.id}&name=${contact.name}`)}>
+    <View style={styles.contactCard}>
+      <Image 
+      source={
+        contact.image
+          ? { uri: `data:image/png;base64,${contact.image}` }
+          : require("../assets/images/react-logo.png")
+      }
+      style={styles.profilePic} />
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactName}>{contact.name}</Text>
+        <Text style={styles.contactMessage}>{contact.message}</Text>
+      </View>
+      {contact.isOnline && <View style={styles.onlineIndicator} />}
+    </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50, paddingHorizontal: 20 },
@@ -185,15 +189,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  // Top Contacts Section
   sectionTitle: {
     color: '#DDB771',
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 24,
-  },
-  contactsTop: {
-    paddingBottom: 24,
   },
   topContactCard: {
     alignItems: 'center',
@@ -212,7 +212,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     width: 70,
   },
-  // Online Indicator
   onlineIndicator: {
     width: 12,
     height: 12,
@@ -223,8 +222,7 @@ const styles = StyleSheet.create({
     top: 2,
     borderWidth: 1,
     borderColor: '#FFFFFF',
-  }, 
-  // Contact Card Styles (for vertical list)
+  },
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,4 +254,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
+  },
 });
+

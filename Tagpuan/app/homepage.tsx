@@ -18,17 +18,18 @@ export default function Homepage() {
 
   const [showMore, setShowMore] = useState(false);
   const { logout } = useContext(AuthContext) ?? {};
-
   const { token } = useContext(AuthContext)!;
-    const [userData, setUserData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const API_URL = "https://tagpuan-back.onrender.com/user/profile";
+  const [userData, setUserData] = useState<any>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const API_URL = `${apiUrl}/user/profile`;
 
   const handleLogout = async () => {
     try {
       if (logout) {
         await logout(); // Call logout function from AuthContext
-        router.replace('/login'); // Redirect to login page
       } else {
         console.error('AuthContext is not available.');
       }
@@ -55,17 +56,15 @@ export default function Homepage() {
             },
           });
     
-          // console.log("Response status:", response.status);
           const responseText = await response.text();
-          // console.log("Raw response text:", responseText);
     
           if (!response.ok) {
             throw new Error(`Failed to fetch profile data: ${response.status} - ${responseText}`);
           }
     
-          const data = JSON.parse(responseText); // Convert raw text to JSON
-          // console.log("User data received:", data);
+          const data = JSON.parse(responseText);
           setUserData(data);
+          setRole(data.role);
         } catch (error) {
           console.error("Error fetching user data:", error);
         } finally {
@@ -101,6 +100,7 @@ export default function Homepage() {
                 ? { uri: `data:image/png;base64,${userData.profile_picture}` }
                 : require("../assets/images/react-logo.png")
             }
+            style={styles.profilePic}
           />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
@@ -120,11 +120,19 @@ export default function Homepage() {
 
       {/* Navigation Icons */}
       <View style={styles.navContainer}>
-        {/* Finder */}
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
-          <FontAwesome name="search" size={28} color="#FFFFFF" />
-          <Text style={styles.navText}>FINDER</Text>
-        </TouchableOpacity>
+        { role?.trim().toLowerCase() === "contractor" ? (
+          // Finder button (if user is a contractor)
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
+            <FontAwesome name="search" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>FINDER</Text>
+          </TouchableOpacity>
+        ) : role?.trim().toLowerCase() === "farmer" ? (
+          // Bid button (if user is a farmer)
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
+            <FontAwesome name="gavel" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>BID</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Dashboard */}
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
