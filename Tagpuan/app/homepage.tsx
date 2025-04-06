@@ -76,8 +76,13 @@ export default function Homepage() {
     }, [token]);
      
   
+  // Loading Indicator
     if (loading) {
-      return <ActivityIndicator size="large" color="#08A045" />;
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#DDB771" />
+        </View>
+      );
     }
   
     if (!userData) {
@@ -346,5 +351,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'right',
   },
-  
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
+  }
 });
