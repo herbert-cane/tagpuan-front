@@ -68,7 +68,7 @@ export default function MessageListPage() {
     };      
 
     fetchContacts();
-  }, []);
+  }, [contacts]);
 
   // Loading Indicator
   if (loading) {
@@ -106,6 +106,7 @@ export default function MessageListPage() {
 
       {/* Message List */}
       <FlatList
+        contentContainerStyle={styles.messageList}
         data={contacts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <ContactCard contact={item} />}
@@ -156,7 +157,12 @@ const ContactCard = ({ contact }: { contact: Contact }) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50, paddingHorizontal: 20 },
+  container: { 
+    flex: 1, 
+    paddingTop: 50, 
+    paddingHorizontal: 20, 
+    flexDirection: 'column', // Ensure vertical stacking
+  },
   header: {
     width: '100%',
     alignItems: 'center',
@@ -260,5 +266,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#073B3A',
   },
+  messageList: {
+    flex: 1,
+    // flexDirection: 'row',
+    // justifyContent: 'center',
+    // alignItems: 'center'
+    // alignContent: 'flex-start'
+  }
 });
 

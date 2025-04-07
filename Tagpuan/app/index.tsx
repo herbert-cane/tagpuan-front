@@ -16,30 +16,36 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 
 export default function LoginScreen() {
-  const { login } = useContext(AuthContext) ?? {}; // Get login function from AuthContext
-  const [email, setEmail] = useState(""); // State for email input
-  const [password, setPassword] = useState(""); // State for password input
+  const { login } = useContext(AuthContext) ?? {};
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [loading, setLoading] = useState(false); // ✅ loading state
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!username || !password) {
       Alert.alert("Error", "Please enter both email and password.");
       return;
     }
+
     try {
+      setLoading(true); // ✅ start loading
       if (login) {
-        await login(email, password); // Call login function from AuthContext       
+        await login(username, password);
       } else {
         console.error("AuthContext is not available.");
       }
     } catch (error) {
       console.error("Login failed:", error);
       Alert.alert("Login Failed", "Invalid email or password.");
+    } finally {
+      setLoading(false); // ✅ stop loading
     }
   };
 
@@ -64,8 +70,8 @@ export default function LoginScreen() {
                   style={styles.input}
                   placeholder="Email"
                   placeholderTextColor="#6BBF59"
-                  value={email}
-                  onChangeText={setEmail}
+                  value={username}
+                  onChangeText={setUsername}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -89,9 +95,10 @@ export default function LoginScreen() {
 
               {/* Options */}
               <View style={styles.optionsContainer}>
-                <TouchableOpacity
+              <TouchableOpacity
                   style={styles.rememberMe}
-                  onPress={() => setIsChecked(!isChecked)}
+                  onPress={() => !loading && setIsChecked(!isChecked)}
+                  disabled={loading}
                 >
                   <Ionicons
                     name={isChecked ? "radio-button-on" : "radio-button-off"}
@@ -100,19 +107,33 @@ export default function LoginScreen() {
                   />
                   <Text style={styles.optionText}>Remember me</Text>
                 </TouchableOpacity>
-                <TouchableOpacity>
+                <TouchableOpacity disabled={loading}>
                   <Text style={styles.optionText}>Forgot Password?</Text>
                 </TouchableOpacity>
               </View>
 
               {/* Footer */}
               <View style={styles.footer}>
-                <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-                  <Text style={styles.loginText}>LOGIN</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.loginButton,
+                    loading && styles.disabledButton, // 👇 disable style when loading
+                  ]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.loginText}>LOGIN</Text>
+                  )}
                 </TouchableOpacity>
 
                 <Text style={styles.signupText}>Don't have an account?</Text>
-                <TouchableOpacity onPress={() => router.push('/signuppage')}>
+                <TouchableOpacity
+                  onPress={() => !loading && router.push("/signuppage")}
+                  disabled={loading}
+                >
                   <Text style={styles.signupLink}>SIGN UP</Text>
                 </TouchableOpacity>
               </View>
@@ -195,6 +216,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 35,
     marginBottom: 10,
+    alignItems: "center",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   loginText: {
     color: "#FFFFFF",
@@ -209,5 +234,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     textDecorationLine: "underline",
     marginTop: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
   },
 });

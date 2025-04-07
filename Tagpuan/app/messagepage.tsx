@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useContext } from 'react';
-import { FlatList, Text, View, Image, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { FlatList, Text, View, Image, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,68 +15,76 @@ interface Contact {
   isOnline: boolean;
 }
 
+interface Message {
+  id: string;
+  text: string;
+  isSender: boolean;
+  senderName?: string;
+  senderProfile?: string;
+}
+
 export default function MessagePage() {
   const { conversationId, name } = useLocalSearchParams();
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [contact, setContact] = useState<Contact | null>(null);
   const flatListRef = useRef<FlatList<any>>(null);
   const { user, token } = useContext(AuthContext)!;
+  const [loading, setLoading] = useState(true);
 
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
 
-  // ✅ Fetch conversation from API
   useEffect(() => {
     const fetchMessages = async () => {
+      setLoading(true); // 🔄 Start loading
       try {
-        const response = await fetch(`${apiUrl}/conversation/get/${conversationId}`,
-          {
-            method: "GET",
-            headers: {
+        const response = await fetch(`${apiUrl}/conversation/get/${conversationId}`, {
+          method: "GET",
+          headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          }
-        );
-
+        });
+  
         const data = await response.json();
-        setContact(data.participants[0]);
-        // console.log(data.participants[0])
-
-        // ✅ Map API response to match local format
-        const formattedMessages = data.messages.map((msg) => ({
+        const otherParticipant = data.participants?.find((p: any) => p._id !== user?._id);
+        setContact(otherParticipant);
+  
+        const formattedMessages: Message[] = data.messages.map((msg: any) => ({
           id: msg._id,
           text: msg.content,
-          isSender: msg.sender_id._id === user?._id, // Replace with the logged-in user ID
+          isSender: msg.sender_id._id === user?._id,
           senderName: `${msg.sender_id.first_name} ${msg.sender_id.last_name}`,
           senderProfile: msg.sender_id.profile_picture,
         }));
-
+  
         setMessages(formattedMessages);
-        // setContact(data[0].participants?.[0]);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
       } catch (error) {
         console.error('Error fetching messages:', error);
+      } finally {
+        setLoading(false); // ✅ Done loading
       }
     };
-
+  
     fetchMessages();
-  }, []);
+  }, [conversationId]);
+  
 
-  // ✅ Handle Sending Messages
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
-  
-    const tempId = Date.now().toString(); // Ensure valid temporary ID
-  
-    const newMessage = {
+
+    const tempId = Date.now().toString();
+
+    const newMessage: Message = {
+      id: tempId,
       text: inputMessage,
       isSender: true,
-      id: tempId, // Use temp ID for local rendering
     };
-  
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    setMessages((prev) => [...prev, newMessage]);
     setInputMessage('');
-  
+
     try {
       const response = await fetch(`${apiUrl}/conversation/send/${conversationId}`, {
         method: 'POST',
@@ -86,15 +94,11 @@ export default function MessagePage() {
         },
         body: JSON.stringify({ content: inputMessage }),
       });
-  
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-  
+
+      if (!response.ok) throw new Error('Failed to send message');
       const data = await response.json();
-  
+
       if (data?.message?._id) {
-        // Replace temporary message with actual message ID from API
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
             msg.id === tempId ? { ...msg, id: data.message._id } : msg
@@ -104,9 +108,8 @@ export default function MessagePage() {
     } catch (error) {
       console.error('Error sending message:', error);
     }
-  }; 
+  };
 
-  // ✅ Handle File Attachment
   const handleAttachment = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({});
@@ -118,6 +121,15 @@ export default function MessagePage() {
     }
   };
 
+  // Loading Indicator
+  if (loading) {
+    return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#DDB771" />
+        </View>
+      );
+  }
+
   return (
     <LinearGradient
       style={styles.container}
@@ -125,6 +137,7 @@ export default function MessagePage() {
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
     >
+      <StatusBar style="auto" />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>MESSAGE</Text>
@@ -135,44 +148,47 @@ export default function MessagePage() {
 
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <Image 
-        source={
-          contact?.profile_picture
-            ? { uri: `data:image/png;base64,${contact.profile_picture}` }
-            : require("../assets/images/react-logo.png")
-        } 
-        style={styles.profilePic} />
-        <Text style={styles.profileName}>{ name }</Text>
+        <Image
+          source={
+            contact?.profile_picture
+              ? { uri: `data:image/png;base64,${contact.profile_picture}` }
+              : require("../assets/images/react-logo.png")
+          }
+          style={styles.profilePic}
+        />
+        <Text style={styles.profileName}>{name}</Text>
       </View>
 
-      {/* ✅ Message Section */}
+      {/* Message Section */}
       <View style={styles.messageSection}>
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View style={[styles.messageContainer, item.isSender ? styles.sentMessage : styles.receivedMessage]}>
               {!item.isSender && (
                 <Image
-                source={
-                  contact?.profile_picture
-                    ? { uri: `data:image/png;base64,${contact.profile_picture}` }
-                    : require("../assets/images/react-logo.png")
-                }
-                style={styles.messageProfilePic} />
+                  source={
+                    contact?.profile_picture
+                      ? { uri: `data:image/png;base64,${contact.profile_picture}` }
+                      : require("../assets/images/react-logo.png")
+                  }
+                  style={styles.messageProfilePic}
+                />
               )}
               <View style={[styles.messageBubble, item.isSender ? styles.sentBubble : styles.receivedBubble]}>
                 <Text style={styles.messageText}>{item.text}</Text>
               </View>
               {item.isSender && (
-                <Image 
-                source={
-                  user?.profile_picture
-                    ? { uri: `data:image/png;base64,${user.profile_picture}` }
-                    : require("../assets/images/react-logo.png")
-                }
-                style={styles.messageProfilePic} />
+                <Image
+                  source={
+                    user?.profile_picture
+                      ? { uri: `data:image/png;base64,${user.profile_picture}` }
+                      : require("../assets/images/react-logo.png")
+                  }
+                  style={styles.messageProfilePic}
+                />
               )}
             </View>
           )}
@@ -181,10 +197,13 @@ export default function MessagePage() {
         />
       </View>
 
-      {/* ✅ Input Section */}
-      <View style={styles.inputContainer}>
-        {/* Attachment Button */}
-        <TouchableOpacity onPress={() => console.log("Attach File")}>
+      {/* Input Section */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={90}
+        style={styles.inputContainer}
+      >
+        <TouchableOpacity onPress={handleAttachment}>
           <FontAwesome name="paperclip" size={24} color="#DDB771" style={styles.icon} />
         </TouchableOpacity>
 
@@ -201,12 +220,11 @@ export default function MessagePage() {
         <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
-      </View>
-
-      <StatusBar style="auto" />
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50, paddingHorizontal: 20 },
@@ -272,4 +290,10 @@ const styles = StyleSheet.create({
   sendButton: { backgroundColor: '#6BBF59', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 18 },
   sendButtonText: { color: '#073B3A', fontSize: 14, fontWeight: 'bold' },
   icon: { marginRight: 12, marginLeft: 8 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
+  }
 });

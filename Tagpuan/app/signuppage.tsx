@@ -2,17 +2,32 @@ import React, { useState } from "react";
 import {
   View, Text, TextInput, Image,
   StyleSheet, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform
+  KeyboardAvoidingView, Platform, Alert
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
+import * as SecureStore from "expo-secure-store";
+import axios from "axios";
 
 const Register = () => {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [frontID, setFrontID] = useState<string | null>(null);
-  const [backID, setBackID] = useState<string | null>(null);
+  const [frontID, setFrontID] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const [backID, setBackID] = useState<{ uri: string; name: string; type: string } | null>(null);
+
+  // Form fields
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+
+  // Save token to SecureStore
+  const saveToken = async (token: string) => {
+    await SecureStore.setItemAsync("userToken", token);
+  };
 
   // Handle role selection
   const handleRoleSelection = (role: string) => {
@@ -20,17 +35,54 @@ const Register = () => {
   };
 
   // Handle image selection for ID Uploads
-  const handleFileSelection = async (setImage: React.Dispatch<React.SetStateAction<string | null>>) => {
+  const handleFileSelection = async (setImage: React.Dispatch<React.SetStateAction<{ uri: string; name: string; type: string } | null>>) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-
       if (result.canceled) return;
-      
       if (result.assets && result.assets.length > 0) {
-        setImage(result.assets[0].uri);
+        const file = result.assets[0];
+        setImage({ uri: file.uri, name: file.name ?? "upload.jpg", type: file.mimeType ?? "image/jpeg" });
       }
     } catch (error) {
       console.error("Error selecting file:", error);
+    }
+  };
+
+  // Handle Registration Request
+  const handleRegister = async () => {
+    if (!username || !email || !password || !firstName || !selectedRole || !frontID || !backID) {
+      Alert.alert("Missing Fields", "Please fill out all required fields.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("username", username);
+    formData.append("email", email);
+    formData.append("password", password);
+    formData.append("role", selectedRole);
+    formData.append("first_name", firstName);
+    formData.append("middle_name", middleName);
+    formData.append("last_name", lastName);
+
+    // Append images as files
+    formData.append("front_id", frontID as any);
+    formData.append("back_id", backID as any);
+
+    try {
+      const response = await axios.post("https://tagpuan-back-production.up.railway.app/user/register", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        maxBodyLength: 10 * 1024 * 1024, // Increase max request size limit to 10MB
+      });
+
+      Alert.alert("Success", "User registered successfully!", [
+        { text: "OK", onPress: () => router.push("/login") }
+      ]);
+      saveToken(response.data.token); // Save token upon successful registration
+    } catch (error) {
+      console.error("Registration error:", error);
+      Alert.alert("Error", "Failed to register. Please try again.");
     }
   };
 
@@ -50,7 +102,6 @@ const Register = () => {
           </TouchableOpacity>
 
           <View style={styles.formContainer}>
-            {/* Title */}
             <Text style={styles.title}>Sign Up</Text>
 
             {/* Account Type Selection */}
@@ -68,33 +119,31 @@ const Register = () => {
             </View>
 
             {/* Form Inputs */}
-            <TextInput placeholder="Username" style={styles.input} placeholderTextColor="#fff" />
-            <TextInput placeholder="Email" style={styles.input} keyboardType="email-address" placeholderTextColor="#fff" />
-            <TextInput placeholder="Password" style={styles.input} secureTextEntry placeholderTextColor="#fff" />
-            <TextInput placeholder="First Name" style={styles.input} placeholderTextColor="#fff" />
-            <TextInput placeholder="Middle Name" style={styles.input} placeholderTextColor="#fff" />
-            <TextInput placeholder="Last Name" style={styles.input} placeholderTextColor="#fff" />
-
+            <TextInput placeholder="Username" style={styles.input} placeholderTextColor="#fff" value={username} onChangeText={setUsername} />
+            <TextInput placeholder="Email" style={styles.input} keyboardType="email-address" placeholderTextColor="#fff" value={email} onChangeText={setEmail} />
+            <TextInput placeholder="Password" style={styles.input} secureTextEntry placeholderTextColor="#fff" value={password} onChangeText={setPassword} />
+            <TextInput placeholder="First Name" style={styles.input} placeholderTextColor="#fff" value={firstName} onChangeText={setFirstName} />
+            <TextInput placeholder="Middle Name" style={styles.input} placeholderTextColor="#fff" value={middleName} onChangeText={setMiddleName} />
+            <TextInput placeholder="Last Name" style={styles.input} placeholderTextColor="#fff" value={lastName} onChangeText={setLastName} />
             {/* Upload ID Section */}
             <Text style={styles.uploadLabel}>Front ID Image</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileSelection(setFrontID)}>
               <Text style={styles.uploadButtonText}>Upload Front ID</Text>
             </TouchableOpacity>
-            {frontID && <Image source={{ uri: frontID }} style={styles.image} />}
+            {frontID && <Image source={{ uri: frontID.uri }} style={styles.image} />}
 
             <Text style={styles.uploadLabel}>Back ID Image</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileSelection(setBackID)}>
               <Text style={styles.uploadButtonText}>Upload Back ID</Text>
             </TouchableOpacity>
-            {backID && <Image source={{ uri: backID }} style={styles.image} />}
+            {backID && <Image source={{ uri: backID.uri }} style={styles.image} />}
 
             {/* Register Button */}
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.registerButtonWrapper}>
+              <TouchableOpacity style={styles.registerButtonWrapper} onPress={handleRegister}>
                 <Text style={styles.registerButtonText}>Register</Text>
               </TouchableOpacity>
             </View>
-
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -172,5 +221,4 @@ const styles = StyleSheet.create({
 
   image: { width: 110, height: 110, borderRadius: 10, marginVertical: 10, alignSelf: "center" },
 });
-
 export default Register;

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from "react";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { jwtDecode } from "jwt-decode";
+import { Text, SafeAreaView } from "react-native";
 
 // Define the token payload interface
 interface JwtPayload {
@@ -19,7 +20,7 @@ interface User {
 interface AuthContextType {
   token: string | null;
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -48,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (storedToken && !isTokenExpired(storedToken)) {
           setToken(storedToken);
           scheduleAutoLogout(storedToken);
-          await fetchUserDetails(storedToken); // Fetch user details
+          await fetchUserDetails(storedToken);
         } else {
           await logout();
         }
@@ -83,9 +84,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-
-      if (!response.ok) throw new Error("Login failed. Check credentials.");
-
+  
+      if (!response.ok) {
+        throw new Error("Invalid credentials"); // Throw here to trigger catch in handleLogin
+      }
+  
       const data = await response.json();
       if (data.accessToken) {
         setToken(data.accessToken);
@@ -94,12 +97,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchUserDetails(data.accessToken);
         router.push("/homepage");
       } else {
-        console.error("Token not found in response:", data);
+        throw new Error("No token found in response");
       }
     } catch (error) {
       console.error("Error during login:", error);
+      throw error; //
     }
   };
+  
 
   const scheduleAutoLogout = (token: string) => {
     try {
@@ -123,8 +128,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await fetch(`${apiUrl}/user/logout`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-      });
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => {console.log("User logged out.")});
       await SecureStore.deleteItemAsync("authToken");
       router.replace("/");
     } catch (error) {
