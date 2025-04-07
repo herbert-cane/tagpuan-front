@@ -69,7 +69,7 @@ const Register = () => {
     formData.append("back_id", backID as any);
 
     try {
-      const response = await axios.post("https://tagpuan-back.onrender.com/user/register", formData, {
+      const response = await axios.post("https://tagpuan-back-production.up.railway.app/user/register", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
