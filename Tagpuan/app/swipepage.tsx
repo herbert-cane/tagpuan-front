@@ -120,7 +120,7 @@ const SwipeCard: React.FC = () => {
         <View style={styles.imageContainer}>
           <Image source={profile.image} style={styles.image} />
         </View>
-        <TouchableOpacity style={styles.seeMoreButton}>
+        <TouchableOpacity style={styles.seeMoreButton} onPress={() => router.push('/profilepage')}>
           <Text style={styles.seeMoreText}>see more</Text>
         </TouchableOpacity>
         <View style={styles.infoContainer}>
@@ -145,10 +145,10 @@ const SwipeCard: React.FC = () => {
           <TouchableOpacity style={styles.button} onPress={() => handleSwipe('left')}>
             <Ionicons name="close" size={32} color="red" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={() => router.push('/messagelistpage')}>
             <Ionicons name="chatbubble" size={32} color="blue" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={() => router.push('/requestpage')}>
             <Image source={require("../assets/images/Vector.png")} style={styles.iconImage} />
           </TouchableOpacity>
         </View>

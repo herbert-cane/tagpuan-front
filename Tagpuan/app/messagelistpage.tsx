@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#073B3A',
   },
   messageList: {
-    flex: 1,
+    flex: 'start',
     // flexDirection: 'row',
     // justifyContent: 'center',
     // alignItems: 'center'

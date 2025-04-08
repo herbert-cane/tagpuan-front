@@ -78,7 +78,7 @@ const Register = () => {
       });
 
       Alert.alert("Success", "User registered successfully!", [
-        { text: "OK", onPress: () => router.push("/login") }
+        { text: "OK", onPress: () => router.push("/") }
       ]);
       saveToken(response.data.token); // Save token upon successful registration
     } catch (error) {
