@@ -137,6 +137,12 @@ export default function Homepage() {
             <FontAwesome name="gavel" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>BID</Text>
           </TouchableOpacity>
+        ) : role?.trim().toLowerCase() === "admin" ? (
+          // Bid button (if user is a admin)
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
+            <FontAwesome name="certificate" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>VERIFY</Text>
+          </TouchableOpacity>
         ) : null}
 
         {/* Dashboard */}
