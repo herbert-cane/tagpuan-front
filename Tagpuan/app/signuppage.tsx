@@ -15,6 +15,7 @@ const Register = () => {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [frontID, setFrontID] = useState<{ uri: string; name: string; type: string } | null>(null);
   const [backID, setBackID] = useState<{ uri: string; name: string; type: string } | null>(null);
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
   // Form fields
   const [username, setUsername] = useState("");
@@ -69,7 +70,7 @@ const Register = () => {
     formData.append("back_id", backID as any);
 
     try {
-      const response = await axios.post("https://tagpuan-back.onrender.com/user/register", formData, {
+      const response = await axios.post(`${apiUrl}/user/register`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
