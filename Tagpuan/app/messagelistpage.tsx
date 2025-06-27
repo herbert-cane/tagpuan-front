@@ -1,10 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { useContext, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
-import { AuthContext } from './authcontext';
 
 interface Contact {
   id: string;
@@ -15,62 +14,33 @@ interface Contact {
 }
 
 export default function MessageListPage() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  // Dummy static contact data
+  const [contacts] = useState<Contact[]>([
+    {
+      id: '1',
+      name: 'Alice Smith',
+      message: 'Hey, how are you?',
+      image: '', // use empty to fallback to default image
+      isOnline: true,
+    },
+    {
+      id: '2',
+      name: 'Bob Johnson',
+      message: 'Let’s catch up soon!',
+      image: '',
+      isOnline: false,
+    },
+    {
+      id: '3',
+      name: 'Clara West',
+      message: 'No messages yet',
+      image: '',
+      isOnline: true,
+    },
+  ]);
 
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  const { token } = useContext(AuthContext)!;
+  const [loading] = useState<boolean>(false); // no more fetching
 
-  useEffect(() => {
-    const fetchContacts = async () => {
-      try {
-        if (!apiUrl) {
-          throw new Error("API URL is undefined. Check your environment variables.");
-        }
-        
-        const response = await fetch(`${apiUrl}/conversation`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-    
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-    
-        const data = await response.json();
-    
-        if (!Array.isArray(data)) {
-          throw new Error("Expected an array but got: " + JSON.stringify(data));
-        }
-    
-          const formattedContacts: Contact[] = data.map((conv: any) => {
-          const participant = conv.participants?.[0] || {};
-          const lastMessage = conv.messages?.length ? conv.messages[conv.messages.length - 1] : null;
-    
-          return {
-            id: conv._id,
-            name: `${participant.first_name ?? "Unknown"} ${participant.last_name ?? "User"}`,
-            message: lastMessage ? lastMessage.content : "No messages yet",
-            image: participant.profile_picture,
-            isOnline: participant.isOnline,
-          };
-        });
-    
-        setContacts(formattedContacts);
-      } catch (error) {
-        console.error("Error fetching contacts:", error);
-      } finally {
-        setLoading(false);
-      }
-    };      
-
-    fetchContacts();
-  }, [contacts]);
-
-  // Loading Indicator
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -86,7 +56,6 @@ export default function MessageListPage() {
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
     >
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>MESSAGES</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
@@ -94,41 +63,41 @@ export default function MessageListPage() {
         </TouchableOpacity>
       </View>
 
-      {/* Top Contacts Section */}
       <Text style={styles.sectionTitle}>Contacts</Text>
-      <FlatList
-        data={contacts}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => <TopContactCard contact={item} />}
-      />
+      <View>
+        <FlatList
+          data={contacts}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => <TopContactCard contact={item} />}
+        />
 
-      {/* Message List */}
-      <FlatList
-        contentContainerStyle={styles.messageList}
-        data={contacts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ContactCard contact={item} />}
-        showsVerticalScrollIndicator={false}
-      />
+        <FlatList
+          data={contacts}
+          style={styles.messageList}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ContactCard contact={item} />}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
+      </View>
 
       <StatusBar style="auto" />
     </LinearGradient>
   );
 }
 
-// Top Contact Card
 const TopContactCard = ({ contact }: { contact: Contact }) => (
   <View style={styles.topContactCard}>
-    <Image 
-    source={
-      contact.image
-        ? { uri: `data:image/png;base64,${contact.image}` }
-        : require("../assets/images/react-logo.png")
-    }
-    
-    style={styles.topProfilePic} />
+    <Image
+      source={
+        contact.image
+          ? { uri: `data:image/png;base64,${contact.image}` }
+          : require("../assets/images/react-logo.png")
+      }
+      style={styles.topProfilePic}
+    />
     {contact.isOnline && <View style={styles.onlineIndicator} />}
     <Text style={styles.topContactName} numberOfLines={1}>
       {contact.name}
@@ -136,17 +105,17 @@ const TopContactCard = ({ contact }: { contact: Contact }) => (
   </View>
 );
 
-// Contact Card
 const ContactCard = ({ contact }: { contact: Contact }) => (
   <TouchableOpacity onPress={() => router.push(`/messagepage?conversationId=${contact.id}&name=${contact.name}`)}>
     <View style={styles.contactCard}>
-      <Image 
-      source={
-        contact.image
-          ? { uri: `data:image/png;base64,${contact.image}` }
-          : require("../assets/images/react-logo.png")
-      }
-      style={styles.profilePic} />
+      <Image
+        source={
+          contact.image
+            ? { uri: `data:image/png;base64,${contact.image}` }
+            : require("../assets/images/react-logo.png")
+        }
+        style={styles.profilePic}
+      />
       <View style={styles.contactInfo}>
         <Text style={styles.contactName}>{contact.name}</Text>
         <Text style={styles.contactMessage}>{contact.message}</Text>
@@ -161,7 +130,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     paddingTop: 50, 
     paddingHorizontal: 20, 
-    flexDirection: 'column', // Ensure vertical stacking
+    // flexDirection: 'column',
   },
   header: {
     width: '100%',
@@ -177,6 +146,7 @@ const styles = StyleSheet.create({
     color: '#DDB771',
     fontFamily: theme.fonts.regular,
     fontSize: 20,
+    marginBottom: 24,
   },
   backButton: {
     position: 'absolute',
@@ -199,7 +169,7 @@ const styles = StyleSheet.create({
     color: '#DDB771',
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   topContactCard: {
     alignItems: 'center',
@@ -267,11 +237,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#073B3A',
   },
   messageList: {
-    flex: 'start',
-    // flexDirection: 'row',
-    // justifyContent: 'center',
-    // alignItems: 'center'
-    // alignContent: 'flex-start'
+    // alignItems: 'flex-start', // ensures items align to the start (horizontally)
+    // justifyContent: 'flex-start', // ensures they align to the top (vertically)
+    // paddingBottom: 20,
+    marginTop: 24,
   }
 });
 

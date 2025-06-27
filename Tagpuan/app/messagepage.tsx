@@ -1,113 +1,43 @@
-import { useEffect, useState, useRef, useContext } from 'react';
-import { FlatList, Text, View, Image, TouchableOpacity, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { useState, useRef } from 'react';
+import {
+  FlatList, Text, View, Image, TouchableOpacity, TextInput,
+  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import theme from '../constants/theme';
-import { AuthContext } from './authcontext';
-
-interface Contact {
-  id: string;
-  name: string;
-  profile_picture?: string;
-  isOnline: boolean;
-}
 
 interface Message {
   id: string;
   text: string;
   isSender: boolean;
-  senderName?: string;
-  senderProfile?: string;
 }
 
 export default function MessagePage() {
-  const { conversationId, name } = useLocalSearchParams();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { name } = useLocalSearchParams();
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '1', text: 'Hi there!', isSender: false },
+    { id: '2', text: 'Hello!', isSender: true },
+  ]);
   const [inputMessage, setInputMessage] = useState('');
-  const [contact, setContact] = useState<Contact | null>(null);
+  const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList<any>>(null);
-  const { user, token } = useContext(AuthContext)!;
-  const [loading, setLoading] = useState(true);
 
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      setLoading(true); // 🔄 Start loading
-      try {
-        const response = await fetch(`${apiUrl}/conversation/get/${conversationId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-  
-        const data = await response.json();
-        const otherParticipant = data.participants?.find((p: any) => p._id !== user?._id);
-        setContact(otherParticipant);
-  
-        const formattedMessages: Message[] = data.messages.map((msg: any) => ({
-          id: msg._id,
-          text: msg.content,
-          isSender: msg.sender_id._id === user?._id,
-          senderName: `${msg.sender_id.first_name} ${msg.sender_id.last_name}`,
-          senderProfile: msg.sender_id.profile_picture,
-        }));
-  
-        setMessages(formattedMessages);
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-      } finally {
-        setLoading(false); // ✅ Done loading
-      }
-    };
-  
-    fetchMessages();
-  }, [conversationId]);
-  
-
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!inputMessage.trim()) return;
 
-    const tempId = Date.now().toString();
-
     const newMessage: Message = {
-      id: tempId,
+      id: Date.now().toString(),
       text: inputMessage,
       isSender: true,
     };
 
     setMessages((prev) => [...prev, newMessage]);
     setInputMessage('');
-
-    try {
-      const response = await fetch(`${apiUrl}/conversation/send/${conversationId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ content: inputMessage }),
-      });
-
-      if (!response.ok) throw new Error('Failed to send message');
-      const data = await response.json();
-
-      if (data?.message?._id) {
-        setMessages((prevMessages) =>
-          prevMessages.map((msg) =>
-            msg.id === tempId ? { ...msg, id: data.message._id } : msg
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
   const handleAttachment = async () => {
@@ -121,13 +51,12 @@ export default function MessagePage() {
     }
   };
 
-  // Loading Indicator
   if (loading) {
     return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#DDB771" />
-        </View>
-      );
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
   }
 
   return (
@@ -138,6 +67,7 @@ export default function MessagePage() {
       end={{ x: 0.5, y: 1 }}
     >
       <StatusBar style="auto" />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>MESSAGE</Text>
@@ -149,11 +79,7 @@ export default function MessagePage() {
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <Image
-          source={
-            contact?.profile_picture
-              ? { uri: `data:image/png;base64,${contact.profile_picture}` }
-              : require("../assets/images/react-logo.png")
-          }
+          source={require("../assets/images/react-logo.png")}
           style={styles.profilePic}
         />
         <Text style={styles.profileName}>{name}</Text>
@@ -169,11 +95,7 @@ export default function MessagePage() {
             <View style={[styles.messageContainer, item.isSender ? styles.sentMessage : styles.receivedMessage]}>
               {!item.isSender && (
                 <Image
-                  source={
-                    contact?.profile_picture
-                      ? { uri: `data:image/png;base64,${contact.profile_picture}` }
-                      : require("../assets/images/react-logo.png")
-                  }
+                  source={require("../assets/images/react-logo.png")}
                   style={styles.messageProfilePic}
                 />
               )}
@@ -182,11 +104,7 @@ export default function MessagePage() {
               </View>
               {item.isSender && (
                 <Image
-                  source={
-                    user?.profile_picture
-                      ? { uri: `data:image/png;base64,${user.profile_picture}` }
-                      : require("../assets/images/react-logo.png")
-                  }
+                  source={require("../assets/images/react-logo.png")}
                   style={styles.messageProfilePic}
                 />
               )}
@@ -207,7 +125,6 @@ export default function MessagePage() {
           <FontAwesome name="paperclip" size={24} color="#DDB771" style={styles.icon} />
         </TouchableOpacity>
 
-        {/* Input Field */}
         <TextInput
           style={styles.input}
           placeholder="Type a message..."
@@ -216,7 +133,6 @@ export default function MessagePage() {
           onChangeText={setInputMessage}
         />
 
-        {/* Send Button */}
         <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
@@ -224,7 +140,6 @@ export default function MessagePage() {
     </LinearGradient>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50, paddingHorizontal: 20 },
@@ -253,7 +168,6 @@ const styles = StyleSheet.create({
   profileSection: { alignItems: 'center', marginBottom: 20 },
   profilePic: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
   profileName: { color: '#DDB771', fontSize: 22, fontWeight: 'bold' },
-  profileInfo: { color: '#FFFFFF', fontSize: 14, textAlign: 'center' },
   messageSection: {
     flex: 1,
     paddingBottom: 60,

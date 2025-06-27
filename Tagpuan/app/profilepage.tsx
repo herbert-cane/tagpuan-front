@@ -1,65 +1,23 @@
-import React, { useEffect, useState, useContext } from "react";
-import { AuthContext } from "../app/authcontext";
-import { View, Text, Image, ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import React from "react";
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import theme from "../constants/theme";
 import { router } from "expo-router";
+import theme from "../constants/theme";
+
+const dummyUser = {
+  profile_picture: "", // leave blank to use default image
+  first_name: "Juan",
+  middle_name: "Dela",
+  last_name: "Cruz",
+  email: "juan@example.com",
+  role: "Farmer",
+  verification: {
+    status: "Approved", // Change to "Rejected" or "Pending" to test icons
+  },
+};
 
 const ProfilePage = () => {
-  const { token } = useContext(AuthContext)!;
-  const [userData, setUserData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  const API_URL = `${apiUrl}/user/profile`;
-
-  useEffect(() => {
-    if (token === null) {
-      setLoading(false);
-      return;
-    }
-  
-    const fetchUserProfile = async () => {
-      try {
-        console.log("Fetching profile with token:", token);
-  
-        const response = await fetch(API_URL, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-  
-        // console.log("Response status:", response.status);
-        const responseText = await response.text();
-        // console.log("Raw response text:", responseText);
-  
-        if (!response.ok) {
-          throw new Error(`Failed to fetch profile data: ${response.status} - ${responseText}`);
-        }
-  
-        const data = JSON.parse(responseText); // Convert raw text to JSON
-        // console.log("User data received:", data);
-        setUserData(data);
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    fetchUserProfile();
-  }, [token]);
-  
-
-  if (loading) {
-    return <ActivityIndicator size="large" color="#08A045" />;
-  }
-
-  if (!userData) {
-    return <Text>Error loading profile data</Text>;
-  }
+  const userData = dummyUser;
 
   return (
     <LinearGradient
@@ -86,8 +44,6 @@ const ProfilePage = () => {
           }
           style={styles.profileImage}
         />
-
-        {/* User Details */}
         <View>
           <Text style={styles.name}>{userData.first_name} {userData.last_name}</Text>
           <View style={styles.verifiedRow}>
@@ -130,10 +86,7 @@ const ProfilePage = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 50,
-  },
+  container: { flex: 1, paddingTop: 50 },
   header: {
     width: "100%",
     alignItems: "center",

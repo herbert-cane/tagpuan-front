@@ -1,8 +1,7 @@
-import { useState, useContext } from "react";
+import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import GradientBackground from "../components/GradientBackground";
 import theme from "../constants/theme";
-import { AuthContext } from "./authcontext";
 
 import {
   View,
@@ -21,12 +20,11 @@ import {
 import { router } from "expo-router";
 
 export default function LoginScreen() {
-  const { login } = useContext(AuthContext) ?? {};
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
-  const [loading, setLoading] = useState(false); // ✅ loading state
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -35,17 +33,15 @@ export default function LoginScreen() {
     }
 
     try {
-      setLoading(true); // ✅ start loading
-      if (login) {
-        await login(username, password);
-      } else {
-        console.error("AuthContext is not available.");
-      }
+      setLoading(true);
+      // Fake login delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      Alert.alert("Success", "Login successful (simulated).");
+      // router.push("/homepage"); // uncomment if you want navigation
     } catch (error) {
-      console.error("Login failed:", error);
-      Alert.alert("Login Failed", "Invalid email or password.");
+      Alert.alert("Login Failed", "Something went wrong.");
     } finally {
-      setLoading(false); // ✅ stop loading
+      setLoading(false);
     }
   };
 
@@ -95,7 +91,7 @@ export default function LoginScreen() {
 
               {/* Options */}
               <View style={styles.optionsContainer}>
-              <TouchableOpacity
+                <TouchableOpacity
                   style={styles.rememberMe}
                   onPress={() => !loading && setIsChecked(!isChecked)}
                   disabled={loading}
@@ -115,10 +111,7 @@ export default function LoginScreen() {
               {/* Footer */}
               <View style={styles.footer}>
                 <TouchableOpacity
-                  style={[
-                    styles.loginButton,
-                    loading && styles.disabledButton, // 👇 disable style when loading
-                  ]}
+                  style={[styles.loginButton, loading && styles.disabledButton]}
                   onPress={handleLogin}
                   disabled={loading}
                 >
@@ -237,8 +230,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#073B3A',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#073B3A",
   },
 });

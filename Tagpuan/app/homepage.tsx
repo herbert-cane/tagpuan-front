@@ -1,11 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
-import { AuthContext } from './authcontext';
-import { useContext, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const recentExports = [
   { id: '1', description: 'Contracted a deal with Juan Dela Cruz', date: '6 days ago' },
@@ -15,79 +14,13 @@ const recentExports = [
 ];
 
 export default function Homepage() {
-
   const [showMore, setShowMore] = useState(false);
-  const { logout } = useContext(AuthContext) ?? {};
-  const { token } = useContext(AuthContext)!;
-  const [userData, setUserData] = useState<any>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  const API_URL = `${apiUrl}/user/profile`;
 
-  const handleLogout = async () => {
-    try {
-      if (logout) {
-        await logout(); // Call logout function from AuthContext
-      } else {
-        console.error('AuthContext is not available.');
-      }
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+  // Dummy values replacing backend data
+  const userData = {
+    profile_picture: null, // You can set a local image if needed
   };
-
-  useEffect(() => {
-      if (token === null) {
-        setLoading(false);
-        return;
-      }
-    
-      const fetchUserProfile = async () => {
-        try {
-          console.log("Fetching profile with token:", token);
-    
-          const response = await fetch(API_URL, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-    
-          const responseText = await response.text();
-    
-          if (!response.ok) {
-            throw new Error(`Failed to fetch profile data: ${response.status} - ${responseText}`);
-          }
-    
-          const data = JSON.parse(responseText);
-          setUserData(data);
-          setRole(data.role);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-    
-      fetchUserProfile();
-    }, [token]);
-     
-  
-  // Loading Indicator
-    if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#DDB771" />
-        </View>
-      );
-    }
-  
-    if (!userData) {
-      return <Text>Error loading profile data</Text>;
-    }
+  const role = "Contractor"; // or "Farmer", "Admin"
 
   return (
     <LinearGradient
@@ -110,9 +43,9 @@ export default function Homepage() {
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>HOMEPAGE</Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleLogout}>
-          <Text style={styles.backText}>{"Logout"}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => alert("Logged out (simulated)")}>
+            <Text style={styles.backText}>{"Logout"}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -125,33 +58,28 @@ export default function Homepage() {
 
       {/* Navigation Icons */}
       <View style={styles.navContainer}>
-        { role?.trim().toLowerCase() === "contractor" ? (
-          // Finder button (if user is a contractor)
+        {role.trim().toLowerCase() === "contractor" ? (
           <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
             <FontAwesome name="search" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>FINDER</Text>
           </TouchableOpacity>
-        ) : role?.trim().toLowerCase() === "farmer" ? (
-          // Bid button (if user is a farmer)
+        ) : role.trim().toLowerCase() === "farmer" ? (
           <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
             <FontAwesome name="gavel" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>BID</Text>
           </TouchableOpacity>
-        ) : role?.trim().toLowerCase() === "admin" ? (
-          // Bid button (if user is a admin)
+        ) : role.trim().toLowerCase() === "admin" ? (
           <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
             <FontAwesome name="certificate" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>VERIFY</Text>
           </TouchableOpacity>
         ) : null}
 
-        {/* Dashboard */}
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
           <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>DASHBOARD</Text>
         </TouchableOpacity>
 
-        {/* Message */}
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
           <FontAwesome name="comments" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>MESSAGE</Text>
@@ -160,16 +88,13 @@ export default function Homepage() {
 
       {/* Hidden Buttons & See More Button Together */}
       <View>
-        {/* Hidden Buttons (Market & Request) */}
         {showMore && (
           <View style={styles.hiddenButtonsContainer}>
-            {/* Market */}
             <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}>
               <FontAwesome name="shopping-basket" size={28} color="#FFFFFF" />
               <Text style={styles.navText}>MARKET</Text>
             </TouchableOpacity>
 
-            {/* Request */}
             <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
               <FontAwesome name="file" size={28} color="#FFFFFF" />
               <Text style={styles.navText}>REQUEST</Text>
@@ -177,7 +102,6 @@ export default function Homepage() {
           </View>
         )}
 
-        {/* See More Button (Pushes Down When Expanded) */}
         <View style={styles.seeMoreContainer}>
           <View style={styles.line} />
           <TouchableOpacity onPress={() => setShowMore(!showMore)}>
@@ -187,31 +111,32 @@ export default function Homepage() {
         </View>
       </View>
 
-    {/* Recent Exports Section */}
-    <View style={styles.recentExportsContainer}>
-    <View style={styles.recentExportsHeader}>
-        <Text style={styles.recentExportsTitle}>Recent Exports</Text>
-        <TouchableOpacity onPress={() => console.log('All clicked')} style={styles.allButton}>
-        <Text style={styles.allButtonText}>All</Text>
-        </TouchableOpacity>
-    </View>
-
-    <FlatList
-        data={recentExports}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-        <View style={styles.exportItem}>
-            <Text style={styles.exportDescription}>{item.description}</Text>
-            <Text style={styles.exportDate}>{item.date}</Text>
+      {/* Recent Exports Section */}
+      <View style={styles.recentExportsContainer}>
+        <View style={styles.recentExportsHeader}>
+          <Text style={styles.recentExportsTitle}>Recent Exports</Text>
+          <TouchableOpacity onPress={() => console.log('All clicked')} style={styles.allButton}>
+            <Text style={styles.allButtonText}>All</Text>
+          </TouchableOpacity>
         </View>
-        )}
-    />
-    </View>
+
+        <FlatList
+          data={recentExports}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.exportItem}>
+              <Text style={styles.exportDescription}>{item.description}</Text>
+              <Text style={styles.exportDate}>{item.date}</Text>
+            </View>
+          )}
+        />
+      </View>
 
       <StatusBar style="auto" />
     </LinearGradient>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

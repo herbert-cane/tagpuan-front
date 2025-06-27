@@ -338,6 +338,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 20,
+    marginBottom: 24,
   },
   rejectButton: {
     backgroundColor: '#E74C3C',
