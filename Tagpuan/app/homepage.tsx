@@ -43,9 +43,12 @@ export default function Homepage() {
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>HOMEPAGE</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => alert("Logged out (simulated)")}>
+            <TouchableOpacity style={styles.backButton} onPress={() => { 
+            alert("Logged out (simulated)")  
+            router.push('/') 
+            }}>
             <Text style={styles.backText}>{"Logout"}</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
         </View>
       </View>
 

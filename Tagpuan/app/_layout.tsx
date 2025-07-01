@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as Font from "expo-font";
-import { Stack } from "expo-router";
+import { Slot, Stack } from "expo-router";
 import { AuthProvider } from "../app/authcontext";
 
 export default function RootLayout() {
@@ -25,8 +25,6 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <AuthProvider> {/* Wrap your app inside the AuthProvider */}
-      <Stack screenOptions={{ headerShown: false }} />
-    </AuthProvider>
+      <Slot />
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, Image,
   StyleSheet, TouchableOpacity, ScrollView,
@@ -7,8 +7,13 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { deleteObject, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage, auth, db } from "../firebaseConfig";
+import { collection, onSnapshot } from "firebase/firestore";
 
 const Register = () => {
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [frontID, setFrontID] = useState<{ uri: string; name: string; type: string } | null>(null);
@@ -21,6 +26,29 @@ const Register = () => {
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [commoditiesSelected, setCommoditiesSelected] = useState<string[]>([]);
+  const [paymentTerms, setPaymentTerms] = useState<string[]>([]);
+  const [modeOfDelivery, setModeOfDelivery] = useState<string[]>([]);
+  const [commodities, setCommodities] = useState<Array<{ id: string; [key: string]: any }>>([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "commodities"),
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.uid,
+          ...doc.data()
+        }));
+        setCommodities(items);
+      },
+      (error) => {
+        console.error("Error fetching commodities:", error);
+      }
+    );
+
+    return () => unsubscribe(); // cleanup listener
+  }, []);
+
 
   const handleRoleSelection = (role: string) => {
     setSelectedRole(role);
@@ -39,16 +67,108 @@ const Register = () => {
     }
   };
 
-  const handleRegister = () => {
-    if (!username || !email || !password || !firstName || !selectedRole || !frontID || !backID) {
-      Alert.alert("Missing Fields", "Please fill out all required fields.");
-      return;
+ const handleRegister = async () => {
+  if (
+    !username || !email || !password || !firstName || !lastName ||
+    !selectedRole || !frontID || !backID
+  ) {
+    Alert.alert("Missing Fields", "Please fill out all required fields.");
+    return;
+  }
+
+  if (selectedRole === "Farmer" &&
+    (!commoditiesSelected || !paymentTerms.length || !modeOfDelivery.length)
+  ) {
+    Alert.alert("Incomplete Farmer Details", "Please provide all required farmer information.");
+    return;
+  }
+
+  try {
+    // Pre-fetch and convert images FIRST
+    const frontRes = await fetch(frontID.uri);
+    const frontIDBlob = await frontRes.blob();
+    const backRes = await fetch(backID.uri);
+    const backIDBlob = await backRes.blob();
+
+    // Ready to commit — create user last
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    const frontIDRef = ref(storage, `users/${user.uid}/frontID.jpg`);
+    const backIDRef = ref(storage, `users/${user.uid}/backID.jpg`);
+
+    await uploadBytes(frontIDRef, frontIDBlob);
+    await uploadBytes(backIDRef, backIDBlob);
+
+    const frontIDUrl = await getDownloadURL(frontIDRef);
+    const backIDUrl = await getDownloadURL(backIDRef);
+
+    await updateProfile(user, { displayName: username });
+
+    const basePayload = {
+      uid: user.uid,
+      username,
+      email,
+      first_name: firstName,
+      middle_name: middleName || null,
+      last_name: lastName,
+      role: selectedRole,
+      frontIDUrl,
+      backIDUrl
+    };
+
+    const fullPayload = selectedRole === "Farmer"
+      ? {
+          ...basePayload,
+          farmer_details: {
+            commodity: commoditiesSelected,
+            paymentTerms,
+            modeOfDelivery
+          }
+        }
+      : basePayload;
+
+
+    const response = await fetch(`${FIREBASE_API}/user/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fullPayload)
+    });
+
+    const responseBody = await response.text();
+    console.log("Backend response:", response.status, responseBody);
+
+    if (!response.ok) {
+      // 🔥 Clean up uploaded files if backend registration fails
+      await deleteObject(frontIDRef).catch(() =>
+        console.warn("Failed to delete front ID image")
+      );
+      await deleteObject(backIDRef).catch(() =>
+        console.warn("Failed to delete back ID image")
+      );
+      throw new Error("Registration failed. Please try again.");
     }
 
-    Alert.alert("Simulated", "User registration complete! (no backend)", [
+
+    Alert.alert("Success", "Registration complete!", [
       { text: "OK", onPress: () => router.push("/") }
     ]);
-  };
+  } catch (error: any) {
+    console.error("Registration Error:", error);
+
+    if (auth.currentUser) {
+      // Clean up if Firebase Auth user was created
+      try {
+        await auth.currentUser.delete();
+      } catch (cleanupErr) {
+        console.warn("User cleanup failed:", cleanupErr);
+      }
+    }
+
+    Alert.alert("Registration Error", error?.message || "Something went wrong.");
+  }
+};
+
 
   return (
     <LinearGradient
@@ -87,6 +207,56 @@ const Register = () => {
             <TextInput placeholder="Middle Name" style={styles.input} placeholderTextColor="#fff" value={middleName} onChangeText={setMiddleName} />
             <TextInput placeholder="Last Name" style={styles.input} placeholderTextColor="#fff" value={lastName} onChangeText={setLastName} />
 
+            {selectedRole === "Farmer" && (
+            <>
+              <Text style={styles.subtitle}>Farmer Details</Text>
+
+              <Text style={styles.subLabel}>Select Commodity</Text>
+              {commodities.map((item) => (
+                <TouchableOpacity
+                key={item.uid}
+                style={[
+                  styles.dropdownItem,
+                  commoditiesSelected.includes(item.uid) && styles.selectedDropdownItem
+                ]}
+                onPress={() => {
+                  setCommoditiesSelected((prev) =>
+                    prev.includes(item.uid)
+                      ? prev.filter((id) => id !== item.uid)
+                      : [...prev, item.uid]
+                  );
+                }}
+
+              >
+                <Text style={styles.dropdownText}>
+                  {item.en_name} ({item.hil_name})
+                </Text>
+              </TouchableOpacity>
+
+              ))}
+              <Text style={styles.subLabel}>Payment Terms</Text>
+              <TextInput
+                placeholder="e.g. Cash on Delivery, E-Wallet"
+                placeholderTextColor="#fff"
+                style={styles.input}
+                value={paymentTerms.join(", ")}
+                onChangeText={(text) =>
+                  setPaymentTerms(text.split(",").map(s => s.trim()))
+                }
+              />
+
+              <Text style={styles.subLabel}>Mode of Delivery</Text>
+              <TextInput
+                placeholder="e.g. Pickup, Delivery"
+                placeholderTextColor="#fff"
+                style={styles.input}
+                value={modeOfDelivery.join(", ")}
+                onChangeText={(text) =>
+                  setModeOfDelivery(text.split(",").map(s => s.trim()))
+                }
+              />
+            </>
+          )}
             <Text style={styles.uploadLabel}>Front ID Image</Text>
             <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileSelection(setFrontID)}>
               <Text style={styles.uploadButtonText}>Upload Front ID</Text>
@@ -159,6 +329,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     color: "#fff",
+  },
+  subLabel: {
+    fontSize: 14,
+    color: "#fff",
+    fontWeight: "600",
+    marginBottom: 5,
+    marginTop: 10,
+  },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#DDB771",
+  },
+  selectedDropdownItem: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderColor: "#fff",
+    borderWidth: 1
+  },
+  dropdownText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  selectedValue: {
+    color: "#DDB771",
+    fontWeight: "bold",
+    marginBottom: 10,
+    marginTop: 5,
   },
   uploadLabel: { fontSize: 14, fontWeight: "bold", marginBottom: 5, color: "#fff" },
   uploadButton: {

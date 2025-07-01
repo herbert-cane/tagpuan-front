@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "49506562506",
+    "project_id": "notional-buffer-462011-q7",
+    "storage_bucket": "notional-buffer-462011-q7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:49506562506:android:7ac02a0620086184615f33",
+        "android_client_info": {
+          "package_name": "com.tagpuanph.tagpuan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1mP-dUYmKXRhDHI8V2oNnjsx8bas3BCk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

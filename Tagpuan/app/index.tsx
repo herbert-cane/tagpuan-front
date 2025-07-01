@@ -37,7 +37,7 @@ export default function LoginScreen() {
       // Fake login delay
       await new Promise((resolve) => setTimeout(resolve, 1000));
       Alert.alert("Success", "Login successful (simulated).");
-      // router.push("/homepage"); // uncomment if you want navigation
+      router.push("/homepage"); // uncomment if you want navigation
     } catch (error) {
       Alert.alert("Login Failed", "Something went wrong.");
     } finally {
