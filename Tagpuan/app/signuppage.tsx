@@ -203,7 +203,7 @@ const Register = () => {
             <Text style={styles.subtitle}>Select Account Type</Text>
 
             <View style={styles.roleContainer}>
-              {["Farmer", "Contractor", "Seller"].map((role) => (
+              {["Farmer", "Contractor", "Vendor"].map((role) => (
                 <TouchableOpacity
                   key={role}
                   style={[styles.roleButton, selectedRole === role && styles.selectedRoleButton]}
