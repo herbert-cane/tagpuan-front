@@ -27,28 +27,42 @@ const Register = () => {
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [commoditiesSelected, setCommoditiesSelected] = useState<string[]>([]);
-  const [paymentTerms, setPaymentTerms] = useState<string[]>([]);
-  const [modeOfDelivery, setModeOfDelivery] = useState<string[]>([]);
+  const [paymentSelected, setPaymentSelected] = useState<string[]>([]);
+  const [deliverySelected, setModeOfDelivery] = useState<string[]>([]);
   const [commodities, setCommodities] = useState<Array<{ id: string; [key: string]: any }>>([]);
 
+  const paymentList = [
+    { id: 'cod', name: 'Cash On Delivery' },
+    { id: 'gcash', name: 'GCash (E-Wallet)' },
+    { id: 'maya', name: 'Maya (E-Wallet)' },
+    { id: 'bank', name: 'Bank Transfer' },
+  ];
+
+  const deliveryModes = [
+    { id: 'pickup', name: 'Pickup' },
+    { id: 'delivery', name: 'Delivery' },
+
+  ];
+
+
   useEffect(() => {
-    const unsubscribe = onSnapshot(
+    const commoditiesList = onSnapshot(
       collection(db, "commodities"),
       (snapshot) => {
         const items = snapshot.docs.map((doc) => ({
-          id: doc.uid,
+          id: doc.id,
           ...doc.data()
         }));
         setCommodities(items);
+        console.log('Commodities:', commodities);
       },
       (error) => {
         console.error("Error fetching commodities:", error);
       }
     );
 
-    return () => unsubscribe(); // cleanup listener
+    return () => commoditiesList();
   }, []);
-
 
   const handleRoleSelection = (role: string) => {
     setSelectedRole(role);
@@ -77,7 +91,7 @@ const Register = () => {
   }
 
   if (selectedRole === "Farmer" &&
-    (!commoditiesSelected || !paymentTerms.length || !modeOfDelivery.length)
+    (!commoditiesSelected || !paymentSelected || !deliverySelected)
   ) {
     Alert.alert("Incomplete Farmer Details", "Please provide all required farmer information.");
     return;
@@ -122,8 +136,8 @@ const Register = () => {
           ...basePayload,
           farmer_details: {
             commodity: commoditiesSelected,
-            paymentTerms,
-            modeOfDelivery
+            paymentTerms: paymentSelected,
+            modeOfDelivery: deliverySelected
           }
         }
       : basePayload;
@@ -212,49 +226,95 @@ const Register = () => {
               <Text style={styles.subtitle}>Farmer Details</Text>
 
               <Text style={styles.subLabel}>Select Commodity</Text>
-              {commodities.map((item) => (
-                <TouchableOpacity
-                key={item.uid}
-                style={[
-                  styles.dropdownItem,
-                  commoditiesSelected.includes(item.uid) && styles.selectedDropdownItem
-                ]}
-                onPress={() => {
-                  setCommoditiesSelected((prev) =>
-                    prev.includes(item.uid)
-                      ? prev.filter((id) => id !== item.uid)
-                      : [...prev, item.uid]
-                  );
-                }}
+              {commodities.map((item) => {
+                const isSelected = commoditiesSelected.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.dropdownItem,
+                      isSelected && styles.selectedRoleButton
+                    ]}
+                    onPress={() => {
+                      setCommoditiesSelected((prev) =>
+                        isSelected
+                          ? prev.filter((id) => id !== item.id)
+                          : [...prev, item.id]
+                      );
+                    }}
+                  >
+                    <Text style={[styles.dropdownText, isSelected && styles.selectedRoleText]}>
+                      {isSelected ? '✔ ' : ''}{item.en_name} ({item.hil_name})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
 
-              >
-                <Text style={styles.dropdownText}>
-                  {item.en_name} ({item.hil_name})
-                </Text>
-              </TouchableOpacity>
 
-              ))}
               <Text style={styles.subLabel}>Payment Terms</Text>
-              <TextInput
-                placeholder="e.g. Cash on Delivery, E-Wallet"
-                placeholderTextColor="#fff"
-                style={styles.input}
-                value={paymentTerms.join(", ")}
-                onChangeText={(text) =>
-                  setPaymentTerms(text.split(",").map(s => s.trim()))
-                }
-              />
+              {paymentList.map((item) => {
+                const isSelected = paymentSelected.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.dropdownItem,
+                      isSelected && styles.selectedRoleButton
+                    ]}
+                    onPress={() => {
+                      setPaymentSelected((prev) =>
+                        isSelected
+                          ? prev.filter((id) => id !== item.id)
+                          : [...prev, item.id]
+                      );
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        isSelected && styles.selectedRoleText
+                      ]}
+                    >
+                    <Text style={[styles.dropdownText, isSelected && styles.selectedRoleText]}>
+                      {isSelected ? '✔ ' : ''}{item.name}
+                    </Text>
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
 
               <Text style={styles.subLabel}>Mode of Delivery</Text>
-              <TextInput
-                placeholder="e.g. Pickup, Delivery"
-                placeholderTextColor="#fff"
-                style={styles.input}
-                value={modeOfDelivery.join(", ")}
-                onChangeText={(text) =>
-                  setModeOfDelivery(text.split(",").map(s => s.trim()))
-                }
-              />
+              {deliveryModes.map((item) => {
+                const isSelected = deliverySelected.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.dropdownItem,
+                      isSelected && styles.selectedRoleButton
+                    ]}
+                    onPress={() => {
+                      setModeOfDelivery((prev) =>
+                        isSelected
+                          ? prev.filter((id) => id !== item.id)
+                          : [...prev, item.id]
+                      );
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        isSelected && styles.selectedRoleText
+                      ]}
+                    >
+                    <Text style={[styles.dropdownText, isSelected && styles.selectedRoleText]}>
+                      {isSelected ? '✔ ' : ''}{item.name}
+                    </Text>
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+  
             </>
           )}
             <Text style={styles.uploadLabel}>Front ID Image</Text>
@@ -347,9 +407,9 @@ const styles = StyleSheet.create({
     borderColor: "#DDB771",
   },
   selectedDropdownItem: {
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "#DDB771",
     borderColor: "#fff",
-    borderWidth: 1
+    fontWeight: "bold"
   },
   dropdownText: {
     color: "#fff",

@@ -1,10 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { auth, db } from '../firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
+import { ActivityIndicator } from 'react-native';
+import { signOut } from 'firebase/auth';
 
 const recentExports = [
   { id: '1', description: 'Contracted a deal with Juan Dela Cruz', date: '6 days ago' },
@@ -16,11 +20,52 @@ const recentExports = [
 export default function Homepage() {
   const [showMore, setShowMore] = useState(false);
 
-  // Dummy values replacing backend data
-  const userData = {
-    profile_picture: null, // You can set a local image if needed
-  };
-  const role = "Contractor"; // or "Farmer", "Admin"
+  const [userData, setUserData] = useState<Record<string, any> | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setUserData(userSnap.data());
+        } else {
+          console.warn('No user document found for UID:', currentUser.uid);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        console.log('User data fetched:', userData);
+        setLoadingUser(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  if (loadingUser) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
+  }
+
+  const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    console.log("User successfully logged out");
+    router.push('/'); // or push('/login') depending on flow
+  } catch (error) {
+    console.error("Logout failed:", error);
+    Alert.alert("Logout Error", "Something went wrong during logout.");
+  }
+};
 
   return (
     <LinearGradient
@@ -33,20 +78,14 @@ export default function Homepage() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push('/profilepage')}>
           <Image
-            source={
-              userData.profile_picture
-                ? { uri: `data:image/png;base64,${userData.profile_picture}` }
-                : require("../assets/images/react-logo.png")
-            }
+            source={{ uri: userData?.profile_picture }}
             style={styles.profilePic}
           />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>HOMEPAGE</Text>
             <TouchableOpacity style={styles.backButton} onPress={() => { 
-            alert("Logged out (simulated)")  
-            router.push('/') 
-            }}>
+              handleLogout();}}>
             <Text style={styles.backText}>{"Logout"}</Text>
             </TouchableOpacity>
         </View>
@@ -61,17 +100,17 @@ export default function Homepage() {
 
       {/* Navigation Icons */}
       <View style={styles.navContainer}>
-        {role.trim().toLowerCase() === "contractor" ? (
+        {userData?.role.trim().toLowerCase() === "contractor" ? (
           <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
             <FontAwesome name="search" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>FINDER</Text>
           </TouchableOpacity>
-        ) : role.trim().toLowerCase() === "farmer" ? (
+        ) : userData?.role.trim().toLowerCase() === "farmer" ? (
           <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
             <FontAwesome name="gavel" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>BID</Text>
           </TouchableOpacity>
-        ) : role.trim().toLowerCase() === "admin" ? (
+        ) : userData?.role.trim().toLowerCase() === "admin" ? (
           <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
             <FontAwesome name="certificate" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>VERIFY</Text>
@@ -134,7 +173,6 @@ export default function Homepage() {
           )}
         />
       </View>
-
       <StatusBar style="auto" />
     </LinearGradient>
   );

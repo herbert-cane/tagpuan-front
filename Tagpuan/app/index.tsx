@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import GradientBackground from "../components/GradientBackground";
 import theme from "../constants/theme";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebaseConfig"; 
 
 import {
   View,
@@ -26,24 +28,28 @@ export default function LoginScreen() {
   const [isChecked, setIsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert("Error", "Please enter both email and password.");
-      return;
-    }
+const handleLogin = async () => {
+  if (!username || !password) {
+    Alert.alert("Error", "Please enter both email and password.");
+    return;
+  }
 
-    try {
-      setLoading(true);
-      // Fake login delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      Alert.alert("Success", "Login successful (simulated).");
-      router.push("/homepage"); // uncomment if you want navigation
-    } catch (error) {
-      Alert.alert("Login Failed", "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+
+    const userCredential = await signInWithEmailAndPassword(auth, username, password);
+    const user = userCredential.user;
+
+    console.log("Logged in user:", user);
+    Alert.alert("Success", `Welcome, ${user.displayName || user.email}!`);
+    router.push("/homepage");
+  } catch (error) {
+    Alert.alert("Login Failed", "Invalid email or password.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <GradientBackground>

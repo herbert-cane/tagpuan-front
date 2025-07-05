@@ -1,23 +1,49 @@
-import React from "react";
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import theme from "../constants/theme";
-
-const dummyUser = {
-  profile_picture: "", // leave blank to use default image
-  first_name: "Juan",
-  middle_name: "Dela",
-  last_name: "Cruz",
-  email: "juan@example.com",
-  role: "Farmer",
-  verification: {
-    status: "Approved", // Change to "Rejected" or "Pending" to test icons
-  },
-};
+import { auth, db } from "@/firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
 
 const ProfilePage = () => {
-  const userData = dummyUser;
+  const [showMore, setShowMore] = useState(false);
+
+  const [userData, setUserData] = useState<Record<string, any> | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+      const fetchUserData = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setUserData(userSnap.data());
+        } else {
+          console.warn('No user document found for UID:', currentUser.uid);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        console.log('User data fetched:', userData);
+        setLoadingUser(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  if (loadingUser) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
+  }
 
   return (
     <LinearGradient
@@ -37,25 +63,22 @@ const ProfilePage = () => {
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <Image
-          source={
-            userData.profile_picture
-              ? { uri: `data:image/png;base64,${userData.profile_picture}` }
-              : require("../assets/images/react-logo.png")
-          }
-          style={styles.profileImage}
-        />
+            source={{ uri: userData?.profile_picture }}
+            style={styles.profileImage}
+          />
         <View>
-          <Text style={styles.name}>{userData.first_name} {userData.last_name}</Text>
+          <Text style={styles.name}>{userData?.first_name} {userData?.last_name}</Text>
           <View style={styles.verifiedRow}>
             <Image
               source={
-                userData.verification.status === "Approved"
+                userData?.isVerified
                   ? require("../assets/images/verified.png")
                   : require("../assets/images/error.png")
               }
               style={styles.verifiedIcon}
             />
-            <Text style={styles.verifiedText}> {userData.verification.status}</Text>
+            <Text style={styles.verifiedText}> {userData?.isVerified ?      "Verified" : "Not Verified"
+            }</Text>
           </View>
         </View>
       </View>
@@ -66,19 +89,19 @@ const ProfilePage = () => {
         <Text style={styles.detailsTitle}>User Details</Text>
 
         <View style={styles.detailBox}>
-          <Text style={styles.details}>First Name: {userData.first_name}</Text>
+          <Text style={styles.details}>First Name: {userData?.first_name}</Text>
         </View>
         <View style={styles.detailBox}>
-          <Text style={styles.details}>Middle Name: {userData.middle_name}</Text>
+          <Text style={styles.details}>Middle Name: {userData?.middle_name}</Text>
         </View>
         <View style={styles.detailBox}>
-          <Text style={styles.details}>Last Name: {userData.last_name}</Text>
+          <Text style={styles.details}>Last Name: {userData?.last_name}</Text>
         </View>
         <View style={styles.detailBox}>
-          <Text style={styles.details}>Email: {userData.email}</Text>
+          <Text style={styles.details}>Email: {userData?.email}</Text>
         </View>
         <View style={styles.detailBox}>
-          <Text style={styles.details}>Role: {userData.role}</Text>
+          <Text style={styles.details}>Role: {userData?.role}</Text>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -181,6 +204,12 @@ const styles = StyleSheet.create({
     color: "#08A045",
     fontFamily: "NovaSquare-Regular",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
+  }
 });
 
 export default ProfilePage;
