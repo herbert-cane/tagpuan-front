@@ -76,7 +76,7 @@ export default function Homepage() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/profilepage')}>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'posts' } })}>
           <Image
             source={{ uri: userData?.profile_picture }}
             style={styles.profilePic}
@@ -138,9 +138,9 @@ export default function Homepage() {
             </TouchableOpacity>
 
             {userData?.role.trim().toLowerCase() === "farmer" ? (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
-                <FontAwesome name="file" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>REQUEST</Text>
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}>
+                <FontAwesome name="user" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>PROFILE</Text>
               </TouchableOpacity>
             ) : userData?.role.trim().toLowerCase() === "contractor" ? (
               <TouchableOpacity style={styles.navItem} onPress={() => router.push('/biddingdashboard')}>

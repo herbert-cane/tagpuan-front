@@ -15,6 +15,7 @@ import theme from "../constants/theme";
 import { auth, db } from "@/firebaseConfig";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from 'expo-router';
 
 const ProfilePage = () => {
   const [showMore, setShowMore] = useState(false);
@@ -23,7 +24,8 @@ const ProfilePage = () => {
   const [loadingUser, setLoadingUser] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [userPosts, setUserPosts] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'posts'>('details');
+  const { tab } = useLocalSearchParams();
+  const [activeTab, setActiveTab] = useState(tab === 'posts' ? 'posts' : 'details');
   const [certifications, setCertifications] = useState<string[]>(userData?.certifications || []);
 
   useEffect(() => {
