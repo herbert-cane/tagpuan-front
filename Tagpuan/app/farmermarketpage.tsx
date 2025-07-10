@@ -49,10 +49,10 @@ export default function App() {
               <View style={styles.greenhighlight}>
                 <Text style={styles.priceText}>500 PHP</Text>
               </View>
-              <Text style={styles.orText}>or</Text>
+              {/* <Text style={styles.orText}>or</Text>
               <View style={styles.highlight}>
                 <Text style={styles.priceText}>30 Agricoin</Text>
-              </View>
+              </View> */}
             </View>
           </TouchableOpacity>
 
@@ -70,10 +70,10 @@ export default function App() {
               <View style={styles.greenhighlight}>
                 <Text style={styles.priceText}>500 PHP</Text>
               </View>
-              <Text style={styles.orText}>or</Text>
+              {/* <Text style={styles.orText}>or</Text>
               <View style={styles.highlight}>
                 <Text style={styles.priceText}>30 Agricoin</Text>
-              </View>
+              </View> */}
             </View>
           </TouchableOpacity>
         </View>
@@ -94,10 +94,10 @@ export default function App() {
               <View style={styles.greenhighlight}>
                 <Text style={styles.priceText}>500 PHP</Text>
               </View>
-              <Text style={styles.orText}>or</Text>
+              {/* <Text style={styles.orText}>or</Text>
               <View style={styles.highlight}>
                 <Text style={styles.priceText}>30 Agricoin</Text>
-              </View>
+              </View> */}
             </View>
           </TouchableOpacity>
 
@@ -115,10 +115,10 @@ export default function App() {
               <View style={styles.greenhighlight}>
                 <Text style={styles.priceText}>500 PHP</Text>
               </View>
-              <Text style={styles.orText}>or</Text>
+              {/* <Text style={styles.orText}>or</Text>
               <View style={styles.highlight}>
                 <Text style={styles.priceText}>30 Agricoin</Text>
-              </View>
+              </View> */}
             </View>
           </TouchableOpacity>
         </View>
@@ -139,10 +139,10 @@ export default function App() {
               <View style={styles.greenhighlight}>
                 <Text style={styles.priceText}>500 PHP</Text>
               </View>
-              <Text style={styles.orText}>or</Text>
+              {/* <Text style={styles.orText}>or</Text>
               <View style={styles.highlight}>
                 <Text style={styles.priceText}>30 Agricoin</Text>
-              </View>
+              </View> */}
             </View>
           </TouchableOpacity>
 
@@ -160,10 +160,10 @@ export default function App() {
               <View style={styles.greenhighlight}>
                 <Text style={styles.priceText}>500 PHP</Text>
               </View>
-              <Text style={styles.orText}>or</Text>
+              {/* <Text style={styles.orText}>or</Text>
               <View style={styles.highlight}>
                 <Text style={styles.priceText}>30 Agricoin</Text>
-              </View>
+              </View> */}
             </View>
           </TouchableOpacity>
         </View>

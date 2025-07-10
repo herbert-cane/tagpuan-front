@@ -137,10 +137,17 @@ export default function Homepage() {
               <Text style={styles.navText}>MARKET</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
-              <FontAwesome name="file" size={28} color="#FFFFFF" />
-              <Text style={styles.navText}>REQUEST</Text>
-            </TouchableOpacity>
+            {userData?.role.trim().toLowerCase() === "farmer" ? (
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
+                <FontAwesome name="file" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>REQUEST</Text>
+              </TouchableOpacity>
+            ) : userData?.role.trim().toLowerCase() === "contractor" ? (
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/biddingdashboard')}>
+                <FontAwesome name="file" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>CONTRACTS</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
@@ -243,7 +250,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
     fontSize: 16,
   },
-  // 👉 New styles for See More Button
   seeMoreButton: {
     marginTop: 20,
     alignSelf: 'center',
@@ -252,7 +258,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#DDB771',
   },
-  // 👉 Updated styles for See More Section
   seeMoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,7 +273,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     backgroundColor: '#DDB771',
-    marginHorizontal: 10, // Add some spacing around the text
+    marginHorizontal: 10,
   },
   seeMoreText: {
     color: '#DDB771',
@@ -292,10 +297,10 @@ const styles = StyleSheet.create({
   },
   allButton: {
     borderWidth: 1,
-    borderColor: '#DDB771', // Match the green theme
+    borderColor: '#DDB771',
     paddingVertical: 4,
     paddingHorizontal: 12,
-    borderRadius: 28, // Circular shape
+    borderRadius: 28, 
     alignItems: 'center',
     justifyContent: 'center',
   },
