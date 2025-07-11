@@ -6,7 +6,8 @@ import {
   StyleSheet,
   Animated,
   PanResponder,
-  TouchableOpacity
+  TouchableOpacity,
+  ScrollView, // Added for scrollable description (optional)
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -120,9 +121,6 @@ const SwipeCard: React.FC = () => {
         <View style={styles.imageContainer}>
           <Image source={profile.image} style={styles.image} />
         </View>
-        <TouchableOpacity style={styles.seeMoreButton} onPress={() => router.push('/profilepage')}>
-          <Text style={styles.seeMoreText}>see more</Text>
-        </TouchableOpacity>
         <View style={styles.infoContainer}>
           <Text style={styles.name}>{profile.name}</Text>
           <View style={styles.iconTextContainer}>
@@ -138,8 +136,10 @@ const SwipeCard: React.FC = () => {
             <Text style={styles.availability}>{profile.availability}</Text>
           </View>
           <View style={styles.descriptionContainer}>
-          <Text style={styles.description}>{profile.description}</Text>
-        </View>
+            <ScrollView>
+              <Text style={styles.description}>{profile.description}</Text>
+            </ScrollView>
+          </View>
         </View>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.button} onPress={() => handleSwipe('left')}>
@@ -169,16 +169,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backButton: {
-  top: 2,
-  right: 0,
-  borderWidth: 2, 
-  borderColor: '#DDB771', 
-  borderRadius: 4, 
-  width: 35, 
-  height: 35, 
-  alignItems: 'center', 
-  justifyContent: 'center' 
-},
+    top: 2,
+    right: 0,
+    borderWidth: 2, 
+    borderColor: '#DDB771', 
+    borderRadius: 4, 
+    width: 35, 
+    height: 35, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
   backText: { 
     color: '#DDB771', 
     fontSize: 24, 
@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '90%',
+    height: 580, // Fixed height
     backgroundColor: 'rgba(224, 247, 239, 0.8)',
     borderRadius: 20,
     padding: 10,
@@ -214,98 +215,99 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
-  // Image Container
   imageContainer: {
-      width: '100%',
-      height: 260,
-      borderRadius: 20,
-      overflow: 'hidden',
-      borderWidth: 3,
-      borderColor: '#08A045',
-      marginBottom: 10,
-    },
-    image: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'cover',
-    },
-    seeMoreButton: {
-      position: 'absolute',
-      top: 220,
-      right: 15,
-      backgroundColor: 'white',
-      borderRadius: 20,
-      paddingVertical: 5,
-      paddingHorizontal: 10,
-      elevation: 3,
-    },
-    seeMoreText: {
-      fontSize: 14,
-      color: 'black',
-      fontWeight: 'bold',
-    },
-    infoContainer: {
-      padding: 10,
-      alignItems: 'flex-start',
-      width: '100%',
-    },
-    name: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      color: '#073B3A',
-    },
-    profession: {
-      fontSize: 16,
-      color: '#000',
-      fontWeight: 'bold',
-    },
-    location: {
-      fontSize: 14,
-      color: '#000',
-      marginTop: 2,
-    },
-    availability: {
-      fontSize: 14,
-      color: '#000',
-    },
-    descriptionContainer: {
-      backgroundColor: '#E0F7EF',
-      borderRadius: 10,
-      padding: 10,
-      width: '100%',
-    },
-    description: {
-      fontSize: 14,
-      color: '#073B3A',
-      textAlign: 'left',
-    },
-    actions: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      width: '100%',
-      marginTop: 15,
-    },
-    button: {
-      padding: 10,
-      backgroundColor: 'white',
-      borderRadius: 50,
-      elevation: 3,
-    },
-    iconTextContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginTop: 7,
-    },
-    supplier: {
-      fontSize: 16,
-      color: "#0B6E4F",
-      fontWeight: "bold",
-    },
-    iconImage: {
-      width: 30,
-      height: 30,
-      marginRight: 5,
-    },
-  });
+    width: '100%',
+    height: 220, // Fixed height
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#08A045',
+    marginBottom: 10,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  seeMoreButton: {
+    position: 'absolute',
+    top: 220,
+    right: 15,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    elevation: 3,
+  },
+  seeMoreText: {
+    fontSize: 14,
+    color: 'black',
+    fontWeight: 'bold',
+  },
+  infoContainer: {
+    padding: 10,
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  name: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#073B3A',
+  },
+  profession: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  location: {
+    fontSize: 14,
+    color: '#000',
+    marginTop: 2,
+  },
+  availability: {
+    fontSize: 14,
+    color: '#000',
+  },
+  descriptionContainer: {
+    backgroundColor: '#E0F7EF',
+    borderRadius: 10,
+    padding: 10,
+    width: '100%',
+    height: 80, // Fixed height
+    overflow: 'hidden',
+  },
+  description: {
+    fontSize: 14,
+    color: '#073B3A',
+    textAlign: 'left',
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 15,
+  },
+  button: {
+    padding: 10,
+    backgroundColor: 'white',
+    borderRadius: 50,
+    elevation: 3,
+  },
+  iconTextContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 7,
+  },
+  supplier: {
+    fontSize: 16,
+    color: "#0B6E4F",
+    fontWeight: "bold",
+  },
+  iconImage: {
+    width: 30,
+    height: 30,
+    marginRight: 5,
+  },
+});
 
 export default SwipeCard;
