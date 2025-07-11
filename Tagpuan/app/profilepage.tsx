@@ -90,9 +90,11 @@ const ProfilePage = () => {
 
       setUserPosts(updatedPosts);
 
-      // Update Firestore
       try {
-        const userRef = doc(db, "users", auth.currentUser?.uid);
+        const uid = auth.currentUser?.uid;
+        if (!uid) throw new Error("User UID is undefined.");
+
+        const userRef = doc(db, "users", uid);
         await updateDoc(userRef, { posts: updatedPosts });
       } catch (error) {
         console.error("Failed to update posts:", error);
@@ -119,7 +121,10 @@ const ProfilePage = () => {
       setCertifications(updatedCerts);
 
       try {
-        const userRef = doc(db, "users", auth.currentUser?.uid);
+        const uid = auth.currentUser?.uid;
+        if (!uid) throw new Error("User UID is undefined.");
+
+        const userRef = doc(db, "users", uid);
         await updateDoc(userRef, { certifications: updatedCerts });
       } catch (error) {
         console.error("Failed to update certifications:", error);
