@@ -46,6 +46,7 @@ const ApplicantCard: React.FC<ApplicantCardProps> = ({ applicant, isSelected, on
 export default function VerificationPage() {
   const [selectedApplicant, setSelectedApplicant] = useState(applicants[0]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'account' | 'item'>('account');
 
   return (
     <LinearGradient
@@ -82,119 +83,110 @@ export default function VerificationPage() {
       </View>
 
       <View style={styles.divider} />
-    
-      <ScrollView style={styles.scrollContainer}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+          
+      <View style={styles.tabButtonsWrapper}>
+        <View style={styles.tabButtonsRow}>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'account' && styles.activeTab]}
+            onPress={() => setActiveTab('account')}
+          >
+            <Text style={styles.tabText}>Account Verification</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'item' && styles.activeTab]}
+            onPress={() => setActiveTab('item')}
+          >
+            <Text style={styles.tabText}>Item Verification</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+
+      <ScrollView
+        style={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-
-      {/* Applicant Details Section */}
-      <Text style={styles.sectionTitle}>Applicant Details</Text>
-      <View style={styles.detailsContainer}>
-        <TextInput
-          style={styles.detailInput}
-          value={`First Name: ${selectedApplicant?.firstName || ''}`}
-          editable={false}
-        />
-        <TextInput
-          style={styles.detailInput}
-          value={`Middle Name: ${selectedApplicant?.middleName || ''}`}
-          editable={false}
-        />
-        <TextInput
-          style={styles.detailInput}
-          value={`Last Name: ${selectedApplicant?.lastName || ''}`}
-          editable={false}
-        />
-        <TextInput
-          style={styles.detailInput}
-          value={`Username: ${selectedApplicant?.username || ''}`}
-          editable={false}
-        />
-        <TextInput
-          style={styles.detailInput}
-          value={`Email: ${selectedApplicant?.email || ''}`}
-          editable={false}
-        />
-        <TextInput
-          style={styles.detailInput}
-          value={`Role: ${selectedApplicant?.role || ''}`}
-          editable={false}
-        />
-
-        {/* ID Picture */}
-        {selectedApplicant?.idFrontImage && (
+        {activeTab === 'account' ? (
           <>
-            <TouchableOpacity onPress={() => setModalVisible(true)}>
-              <Image source={selectedApplicant.idFrontImage} style={styles.idFrontImage} />
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Applicant Details</Text>
+            <View style={styles.detailsContainer}>
+              <TextInput style={styles.detailInput} value={`First Name: ${selectedApplicant?.firstName || ''}`} editable={false} />
+              <TextInput style={styles.detailInput} value={`Middle Name: ${selectedApplicant?.middleName || ''}`} editable={false} />
+              <TextInput style={styles.detailInput} value={`Last Name: ${selectedApplicant?.lastName || ''}`} editable={false} />
+              <TextInput style={styles.detailInput} value={`Username: ${selectedApplicant?.username || ''}`} editable={false} />
+              <TextInput style={styles.detailInput} value={`Email: ${selectedApplicant?.email || ''}`} editable={false} />
+              <TextInput style={styles.detailInput} value={`Role: ${selectedApplicant?.role || ''}`} editable={false} />
 
-            {/* Modal for Expanded Image */}
-            <Modal
-              animationType="fade"
-              transparent={true}
-              visible={modalVisible}
-              onRequestClose={() => setModalVisible(false)}
-            >
-              <View style={styles.modalContainer}>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
+              {/* ID Picture Front */}
+              {selectedApplicant?.idFrontImage && (
+                <>
+                  <TouchableOpacity onPress={() => setModalVisible(true)}>
+                    <Image source={selectedApplicant.idFrontImage} style={styles.idFrontImage} />
+                  </TouchableOpacity>
+                  <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+                    <View style={styles.modalContainer}>
+                      <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                        <Text style={styles.closeButtonText}>✕</Text>
+                      </TouchableOpacity>
+                      <Image source={selectedApplicant.idFrontImage} style={styles.expandedImage} resizeMode="contain" />
+                    </View>
+                  </Modal>
+                </>
+              )}
+
+              {/* ID Picture Back */}
+              {selectedApplicant?.idBackImage && (
+                <>
+                  <TouchableOpacity onPress={() => setModalVisible(true)}>
+                    <Image source={selectedApplicant.idBackImage} style={styles.idBackImage} />
+                  </TouchableOpacity>
+                  <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+                    <View style={styles.modalContainer}>
+                      <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                        <Text style={styles.closeButtonText}>✕</Text>
+                      </TouchableOpacity>
+                      <Image source={selectedApplicant.idBackImage} style={styles.expandedImage} resizeMode="contain" />
+                    </View>
+                  </Modal>
+                </>
+              )}
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.rejectButton} onPress={() => console.log('Rejected')}>
+                <Text style={styles.buttonText}>REJECT</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.acceptButton} onPress={() => console.log('Accepted')}>
+                <Text style={styles.buttonText}>ACCEPT</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Item Selling Verification</Text>
+
+            <View style={styles.placeholderCard}>
+              <Text style={styles.placeholderTitle}>Item Name: Fresh Carrots</Text>
+              <Text style={styles.placeholderText}>Price: ₱100</Text>
+              <Text style={styles.placeholderText}>Contact: 09123456789</Text>
+              <Text style={styles.placeholderText}>Status: Pending Approval</Text>
+              <Image source={require('../assets/images/main-image.png')} style={styles.placeholderImage} />
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity style={styles.rejectButton}>
+                  <Text style={styles.buttonText}>REJECT</Text>
                 </TouchableOpacity>
-                <Image
-                  source={selectedApplicant.idFrontImage}
-                  style={styles.expandedImage}
-                  resizeMode="contain"
-                />
+                <TouchableOpacity style={styles.acceptButton}>
+                  <Text style={styles.buttonText}>ACCEPT</Text>
+                </TouchableOpacity>
               </View>
-            </Modal>
+            </View>
           </>
         )}
-
-        {selectedApplicant?.idBackImage && (
-          <>
-            <TouchableOpacity onPress={() => setModalVisible(true)}>
-              <Image source={selectedApplicant.idBackImage} style={styles.idBackImage} />
-            </TouchableOpacity>
-
-            {/* Modal for Expanded Image */}
-            <Modal
-              animationType="fade"
-              transparent={true}
-              visible={modalVisible}
-              onRequestClose={() => setModalVisible(false)}
-            >
-              <View style={styles.modalContainer}>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-                <Image
-                  source={selectedApplicant.idBackImage}
-                  style={styles.expandedImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </Modal>
-          </>
-        )}
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.rejectButton} onPress={() => console.log('Rejected')}>
-          <Text style={styles.buttonText}>REJECT</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.acceptButton} onPress={() => console.log('Accepted')}>
-          <Text style={styles.buttonText}>ACCEPT</Text>
-        </TouchableOpacity>
-      </View>
-
       </ScrollView>
+
       <StatusBar style="auto" />
     </LinearGradient>
   );
@@ -357,5 +349,53 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  tabButtonsWrapper: {
+  width: '100%',
+  marginBottom: 10,
+  },
+  tabButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#0B6E4F',
+    borderRadius: 10,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  activeTab: {
+    backgroundColor: '#DDB771',
+  },
+  tabText: {
+    color: '#fff',
+    fontFamily: 'NovaSquare-Regular',
+    fontSize: 14,
+  },
+    placeholderCard: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  placeholderTitle: {
+    color: '#073B3A',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  placeholderText: {
+    color: '#073B3A',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  placeholderImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginVertical: 10,
   },
 });

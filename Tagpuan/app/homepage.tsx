@@ -115,7 +115,12 @@ export default function Homepage() {
             <FontAwesome name="certificate" size={28} color="#FFFFFF" />
             <Text style={styles.navText}>VERIFY</Text>
           </TouchableOpacity>
-        ) : null}
+        ) : userData?.role.trim().toLowerCase() === "vendor" ? (
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/itemselling')}>
+            <FontAwesome name="shopping-cart" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>SELL</Text>
+          </TouchableOpacity>
+        ): null}
 
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
           <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
@@ -138,6 +143,11 @@ export default function Homepage() {
             </TouchableOpacity>
 
             {userData?.role.trim().toLowerCase() === "farmer" ? (
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}>
+                <FontAwesome name="user" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>PROFILE</Text>
+              </TouchableOpacity>
+            ) : userData?.role.trim().toLowerCase() === "vendor" ? (
               <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}>
                 <FontAwesome name="user" size={28} color="#FFFFFF" />
                 <Text style={styles.navText}>PROFILE</Text>

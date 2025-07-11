@@ -20,7 +20,7 @@ export default function App() {
       {/* Title + Button Container */}
       <View style={styles.header}>
         {/* Title */}
-        <Text style={styles.title}>FARMERS MARKET</Text>
+        <Text style={styles.title}>MARKET</Text>
 
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.push('/homepage')}>
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     paddingHorizontal: 20,
-    marginBottom: 56,
+    marginBottom: 24,
   },
   title: {
     marginTop: 8,
