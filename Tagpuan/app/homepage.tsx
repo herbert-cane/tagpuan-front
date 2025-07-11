@@ -131,6 +131,14 @@ export default function Homepage() {
           <FontAwesome name="comments" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>MESSAGE</Text>
         </TouchableOpacity>
+        
+        {userData?.role.trim().toLowerCase() === "contractor" ? (
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
+            <FontAwesome name="file-text" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>REQUEST</Text>
+          </TouchableOpacity>
+        ): null }
+
       </View>
 
       {/* Hidden Buttons & See More Button Together */}
@@ -324,7 +332,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: '#4F9D69', // Light green for subtle separation
+    borderColor: '#4F9D69', 
   },
   exportDescription: {
     color: '#FFFFFF',

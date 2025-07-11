@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
+const unitOptions = ['KG', 'PCS', 'BOX', 'SACK'];
+
 
 type DropdownOptions = {
   Commodity: string[];
@@ -25,6 +27,9 @@ const MakeRequestScreen: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
   const [deliveryPlace, setDeliveryPlace] = useState('');
+  const [amountUnit, setAmountUnit] = useState('');
+  const [priceUnit, setPriceUnit] = useState('');
+
 
   const dropdownOptions: DropdownOptions = {
     Commodity: ['Onion (Sibuyas)', 'Garlic (Bawang)', 'Tomatoes (Kamatis)', 'Lettuce (Litsugas)', 'Chicken (Manok)', 'Pork (Baboy)', 'Beef (Baka)', 'Corn (Mais)', 'Jackfruit (Langka)', 'Other'],
@@ -77,16 +82,27 @@ const MakeRequestScreen: React.FC = () => {
             )}
           </View>
 
-          <View style={styles.pickerContainer}>
+          <View style={styles.rowWithUnit}>
             <TextInput
-              style={styles.inputFieldInsidePicker}
-              placeholder="Amount eg: 10PCS/20KG/etc."
+              style={[styles.inputFieldInsidePicker, { flex: 1 }]}
+              placeholder="Amount"
               value={amount}
               onChangeText={setAmount}
+              keyboardType="numeric"
             />
+            <Picker
+              selectedValue={amountUnit}
+              onValueChange={setAmountUnit}
+              style={styles.unitPicker}
+            >
+              <Picker.Item label="Unit" value="" enabled={false} />
+              {unitOptions.map((unit) => (
+                <Picker.Item key={unit} label={unit} value={unit} />
+              ))}
+            </Picker>
           </View>
 
-          <View style={styles.pickerContainer}>
+          <View style={styles.rowWithUnit}>
             <Text style={styles.pesoSign}>₱</Text>
             <TextInput
               style={[styles.inputFieldInsidePicker, styles.priceInput]}
@@ -95,6 +111,17 @@ const MakeRequestScreen: React.FC = () => {
               onChangeText={setPrice}
               keyboardType="numeric"
             />
+            <Text style={{ marginHorizontal: 4, fontWeight: 'bold' }}>per</Text>
+            <Picker
+              selectedValue={priceUnit}
+              onValueChange={setPriceUnit}
+              style={styles.unitPicker}
+            >
+              <Picker.Item label="Unit" value="" enabled={false} />
+              {unitOptions.map((unit) => (
+                <Picker.Item key={unit} label={unit} value={unit} />
+              ))}
+            </Picker>
           </View>
 
           <View style={styles.pickerContainer}>
@@ -156,6 +183,19 @@ const styles = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
+  },
+  rowWithUnit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 5,
+    marginVertical: 5,
+    paddingHorizontal: 10,
+    height: 55,
+  },
+  unitPicker: {
+    width: 100,
+    height: 50,
   },
 });
 

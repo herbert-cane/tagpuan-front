@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import theme from '../constants/theme';
@@ -13,9 +13,20 @@ const questsData = [
   { commodity: 'Chicken', contractType: 'Bulk', price: '200/kg', schedule: '5 days', delivery: 'Balay Guimaraila, Miagao, Iloilo' },
 ];
 
+type Quest = {
+  commodity: string;
+  contractType: string;
+  price: string;
+  schedule: string;
+  delivery: string;
+};
+
 export default function QuestsPage() {
   const [filterVisible, setFilterVisible] = useState(false);
   const [filteredQuests, setFilteredQuests] = useState(questsData);
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+
 
   const applyFilters = (filters: { commodity?: string; contractType?: string }) => {
     setFilterVisible(false);
@@ -61,7 +72,13 @@ export default function QuestsPage() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.bidButton} onPress={() => console.log('Bid Pressed')}>
+            <TouchableOpacity
+              style={styles.bidButton}
+              onPress={() => {
+                setSelectedQuest(quest);
+                setConfirmVisible(true);
+              }}
+            >
               <Text style={styles.bidButtonText}>BID</Text>
             </TouchableOpacity>
           </View>
@@ -69,6 +86,49 @@ export default function QuestsPage() {
       </ScrollView>
 
       <QuestFilter visible={filterVisible} onClose={() => setFilterVisible(false)} onApply={applyFilters} />
+      
+      <Modal
+        visible={confirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Bid</Text>
+
+            {selectedQuest && (
+              <View style={{ marginBottom: 10 }}>
+                {Object.entries(selectedQuest).map(([key, value]) => (
+                  <Text key={key} style={styles.modalDetail}>
+                    <Text style={styles.modalLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}:</Text> {value}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#D9534F' }]}
+                onPress={() => setConfirmVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#08A045' }]}
+                onPress={() => {
+                  console.log('Bid confirmed for:', selectedQuest);
+                  setConfirmVisible(false);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <StatusBar style="auto" />
     </LinearGradient>
   );
@@ -93,4 +153,47 @@ const styles = StyleSheet.create({
   bidButtonText: { fontWeight: 'bold', fontSize: 16 },
   backButton: { position: 'absolute',top: 2, right: 0, borderWidth: 2, borderColor: '#DDB771', borderRadius: 4, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backText: { color: '#DDB771', fontSize: 24, fontWeight: 'bold' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#F5F5F5',
+    padding: 20,
+    borderRadius: 10,
+    width: '85%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#073B3A',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalDetail: {
+    fontSize: 14,
+    color: '#073B3A',
+    marginBottom: 4,
+  },
+  modalLabel: {
+    fontWeight: 'bold',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });

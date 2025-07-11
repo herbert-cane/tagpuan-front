@@ -18,6 +18,11 @@ export default function BiddingDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const formatDate = (dateString: string) => {
+  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+  return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
 
   useEffect(() => {
     const mockRequest = {
@@ -25,7 +30,7 @@ export default function BiddingDashboard() {
       commodity: 'Chicken Eggs',
       contractType: 'Bulk',
       price: '₱85/kg',
-      schedule: 'Within 5 days',
+      schedule: '5 days',
       delivery: 'Brgy. Dumulog, Roxas City, Capiz',
       bidders: [
         { id: 'u1', name: 'Carlos Tan', amount: '₱83/kg' },
@@ -97,31 +102,61 @@ export default function BiddingDashboard() {
                 <Text style={styles.label}>Commodity: <Text style={styles.value}>{selectedRequest.commodity}</Text></Text>
                 <Text style={styles.label}>Contract: <Text style={styles.value}>{selectedRequest.contractType}</Text></Text>
                 <Text style={styles.label}>Price: <Text style={styles.value}>{selectedRequest.price}</Text></Text>
-                <Text style={styles.label}>Schedule: <Text style={styles.value}>{selectedRequest.schedule}</Text></Text>
+                <Text style={styles.label}>Schedule: <Text style={styles.value}>On or before {selectedRequest.schedule}</Text></Text>
                 <Text style={styles.label}>Delivery: <Text style={styles.value}>{selectedRequest.delivery}</Text></Text>
 
                 <View style={{ marginTop: 16 }}>
                   <Text style={[styles.label, { fontSize: 16 }]}>Bidders:</Text>
-                  {selectedRequest.bidders && selectedRequest.bidders.length > 0 ? (
-                    selectedRequest.bidders.map((bidder: any, idx: number) => (
+                    {selectedRequest.bidders.map((bidder: any, idx: number) => (
                       <View key={idx} style={styles.bidderRow}>
                         <View>
                           <Text style={styles.bidderName}>{bidder.name}</Text>
-                          <Text style={styles.bidderAmount}>{bidder.amount}</Text>
                         </View>
+
                         <View style={styles.actionButtons}>
-                          <TouchableOpacity style={styles.acceptBtn} onPress={() => console.log('Accepted', bidder.id)}>
+                          <TouchableOpacity
+                            style={styles.profileBtn}
+                            onPress={() => {
+                              router.push({
+                                pathname: '/profilepage',
+                                // params: { userId: bidder.id },
+                              });
+                            }}
+                          >
+                            <Ionicons name="person-outline" size={20} color="#fff" />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.messageBtn}
+                            onPress={() =>
+                              router.push({
+                                pathname: '/messagepage',
+                                params: { recipientId: bidder.id }, // update based on your routing
+                              })
+                            }
+                          >
+                            <Ionicons name="chatbox-ellipses-outline" size={20} color="#fff" />
+                          </TouchableOpacity>
+
+                          {/* Vertical Divider */}
+                          <View style={styles.verticalDivider} />
+
+                          {/* Accept / Reject */}
+                          <TouchableOpacity
+                            style={styles.acceptBtn}
+                            onPress={() => console.log('Accepted', bidder.id)}
+                          >
                             <Text style={styles.actionText}>✔</Text>
                           </TouchableOpacity>
-                          <TouchableOpacity style={styles.rejectBtn} onPress={() => console.log('Rejected', bidder.id)}>
+                          <TouchableOpacity
+                            style={styles.rejectBtn}
+                            onPress={() => console.log('Rejected', bidder.id)}
+                          >
                             <Text style={styles.actionText}>✖</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
-                    ))
-                  ) : (
-                    <Text style={styles.noBids}>No bidders yet.</Text>
-                  )}
+                    ))}
                 </View>
               </>
             )}
@@ -214,10 +249,6 @@ const styles = StyleSheet.create({
     color: '#073B3A',
     fontWeight: 'bold',
   },
-  bidderAmount: {
-    fontSize: 13,
-    color: '#08A045',
-  },
   actionButtons: {
     flexDirection: 'row',
     gap: 8,
@@ -240,5 +271,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontStyle: 'italic',
     color: '#888',
+  },
+  profileBtn: {
+    backgroundColor: '#0B6E4F',
+    borderRadius: 4,
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageBtn: {
+    backgroundColor: '#08A045',
+    borderRadius: 4,
+    padding: 6,
+    marginRight: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verticalDivider: {
+    width: 1,
+    backgroundColor: '#ccc',
+    marginHorizontal: 8,
+    alignSelf: 'stretch',
   },
 });
