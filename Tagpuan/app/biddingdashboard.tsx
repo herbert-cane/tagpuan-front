@@ -11,34 +11,83 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { auth, db } from '@/firebaseConfig';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
 import theme from '../constants/theme';
 
 export default function BiddingDashboard() {
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
+  if (!FIREBASE_API) {
+    throw new Error('FIREBASE_API URL is not set. Please check your environment configuration.');
+  }
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const formatDate = (dateString: string) => {
-  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-  return new Date(dateString).toLocaleDateString(undefined, options);
+
+  // Helper function to format a timestamp (milliseconds) to a readable date
+  const formatDate = (timestamp: number) => {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(timestamp).toLocaleDateString(undefined, options);
   };
+
+  const deliveryModes = [
+    { id: 'pickup', name: 'Pickup' },
+    { id: 'delivery', name: 'Delivery' },
+  ];
+
+    const paymentList = [
+    { id: 'cod', name: 'Cash On Delivery' },
+    { id: 'gcash', name: 'GCash (E-Wallet)' },
+    { id: 'maya', name: 'Maya (E-Wallet)' },
+    { id: 'bank', name: 'Bank Transfer' },
+  ];
 
 
   useEffect(() => {
-    const mockRequest = {
-      id: 'mock1',
-      commodity: 'Chicken Eggs',
-      contractType: 'Bulk',
-      price: '₱85/kg',
-      schedule: '5 days',
-      delivery: 'Brgy. Dumulog, Roxas City, Capiz',
-      bidders: [
-        { id: 'u1', name: 'Carlos Tan', amount: '₱83/kg' },
-        { id: 'u2', name: 'Ana Reyes', amount: '₱84/kg' },
-      ],
+    const fetchRequests = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated');
+        const token = await user.getIdToken();
+        const response = await fetch(`${FIREBASE_API}/request/user`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`API error: ${response.status} - ${text}`);
+        }
+        const data = await response.json();
+        setRequests(data);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+      }
     };
-    setRequests([mockRequest]);
+
+    fetchRequests();
   }, []);
+
+  const [commodities, setCommodities] = useState<any[]>([]);
+
+  useEffect(() => {
+      const commoditiesList = onSnapshot(
+        collection(db, "commodities"),
+        (snapshot) => {
+          const items = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setCommodities(items);
+          console.log('Commodities:', items);
+        },
+        (error) => {
+          console.error("Error fetching commodities:", error);
+        }
+      );
+  
+      return () => commoditiesList();
+    }, []);
 
   return (
     <LinearGradient colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']} style={styles.container}>
@@ -53,36 +102,57 @@ export default function BiddingDashboard() {
         {requests.length === 0 ? (
           <Text style={styles.noRequests}>You haven't posted any requests yet.</Text>
         ) : (
-          requests.map((request, index) => (
-            <View key={index} style={styles.cardWrapper}>
-              <TouchableOpacity
-                style={styles.requestCard}
-                onPress={() => {
-                  setSelectedRequest(request);
-                  setModalVisible(true);
-                }}
-              >
-                <View style={styles.cardHeader}>
-                <View style={styles.iconWrapper}>
-                    <Ionicons name="document-text-outline" size={36} color="#808080" />
-                </View>
-                <View style={styles.requestDetails}>
-                    <View style={styles.detailRow}>
-                    <Text style={styles.label}>Commodity:</Text>
-                    <Text style={styles.value}>{request.commodity}</Text>
+          requests.map((request) => (
+            request ? (
+              <View key={request.id} style={styles.cardWrapper}>
+                <TouchableOpacity
+                  style={styles.requestCard}
+                  onPress={() => {
+                    setSelectedRequest(request);
+                    setModalVisible(true);
+                  }}
+                >
+                  <View style={styles.cardHeader}>
+                  <View style={styles.iconWrapper}>
+                      <Ionicons name="document-text-outline" size={36} color="#808080" />
+                  </View>
+                  <View style={styles.requestDetails}>
+                      <View style={styles.detailRow}>
+                      <Text style={styles.label}>Commodity:</Text>
+                      <Text style={styles.value}>
+                        {
+                          (() => {
+                            const commodityObj = commodities.find(c => c.id === request.commodity);
+                            return commodityObj
+                              ? `${commodityObj.en_name} (${commodityObj.hil_name})`
+                              : request.commodity;
+                          })()
+                        }
+                      </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.label}>Quantity: <Text style={styles.value}>{request.quantity} {request.unit}</Text></Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.label}>Price: </Text>
+                        <Text style={styles.value}>₱{request.price}/{request.unit}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.label}>
+                          Schedule:{" "}
+                            <Text style={styles.value}>
+                            On or before{" "}
+                            {request.schedule && typeof request.schedule === "object" && "_seconds" in request.schedule
+                              ? formatDate(request.schedule._seconds * 1000)
+                              : "Unknown"}
+                            </Text>
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.detailRow}>
-                    <Text style={styles.label}>Contract:</Text>
-                    <Text style={styles.value}>{request.contractType}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                    <Text style={styles.label}>Price:</Text>
-                    <Text style={styles.value}>{request.price}</Text>
-                    </View>
-                </View>
-                </View>
-              </TouchableOpacity>
-            </View>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ) : null
           ))
         )}
       </ScrollView>
@@ -99,15 +169,54 @@ export default function BiddingDashboard() {
 
             {selectedRequest && (
               <>
-                <Text style={styles.label}>Commodity: <Text style={styles.value}>{selectedRequest.commodity}</Text></Text>
-                <Text style={styles.label}>Contract: <Text style={styles.value}>{selectedRequest.contractType}</Text></Text>
-                <Text style={styles.label}>Price: <Text style={styles.value}>{selectedRequest.price}</Text></Text>
-                <Text style={styles.label}>Schedule: <Text style={styles.value}>On or before {selectedRequest.schedule}</Text></Text>
-                <Text style={styles.label}>Delivery: <Text style={styles.value}>{selectedRequest.delivery}</Text></Text>
+              <Text style={styles.label}>
+                Commodity: <Text style={styles.value}>
+                  {(() => {
+                    const commodityObj = commodities.find(c => c.id === selectedRequest.commodity);
+                    return commodityObj
+                      ? `${commodityObj.en_name} (${commodityObj.hil_name})`
+                      : selectedRequest.commodity;
+                  })()}
+                </Text>
+              </Text>
+                <Text style={styles.label}>Quantity: <Text style={styles.value}>{selectedRequest.quantity} {selectedRequest.unit}</Text></Text>
+                <Text style={styles.label}>Price: <Text style={styles.value}>₱{selectedRequest.price}/{selectedRequest.unit}</Text></Text>
+                <Text style={styles.label}>
+                  Schedule:{" "}
+                    <Text style={styles.value}>
+                    On or before{" "}
+                    {selectedRequest.schedule && typeof selectedRequest.schedule === "object" && "_seconds" in selectedRequest.schedule
+                      ? formatDate(selectedRequest.schedule._seconds * 1000)
+                      : "Unknown"}
+                    </Text>
+                </Text>
+                <Text style={styles.label}>
+                  Delivery:{" "}
+                  <Text style={styles.value}>
+                    {
+                      (() => {
+                        const mode = deliveryModes.find(m => m.id === selectedRequest.logistics);
+                        return mode ? mode.name : selectedRequest.logistics;
+                      })()
+                    }
+                  </Text>
+                </Text>
+                <Text style={styles.label}>
+                  Payment Method:{" "}
+                  <Text style={styles.value}>
+                    {
+                      (() => {
+                        const mode = paymentList.find(m => m.id === selectedRequest.payment_terms);
+                        return mode ? mode.name : selectedRequest.payment_terms;
+                      })()
+                    }
+                  </Text>
+                </Text>
 
                 <View style={{ marginTop: 16 }}>
                   <Text style={[styles.label, { fontSize: 16 }]}>Bidders:</Text>
-                    {selectedRequest.bidders.map((bidder: any, idx: number) => (
+                  {selectedRequest.bidders && selectedRequest.bidders.length > 0 ? (
+                    selectedRequest.bidders.map((bidder: any, idx: number) => (
                       <View key={idx} style={styles.bidderRow}>
                         <View>
                           <Text style={styles.bidderName}>{bidder.name}</Text>
@@ -156,7 +265,10 @@ export default function BiddingDashboard() {
                           </TouchableOpacity>
                         </View>
                       </View>
-                    ))}
+                    ))
+                  ) : (
+                    <Text style={styles.noBids}>No bids yet.</Text>
+                  )}
                 </View>
               </>
             )}
@@ -194,7 +306,7 @@ const styles = StyleSheet.create({
     color: '#073B3A',
     marginLeft: 8, // <-- space between label and value
   },
-  noRequests: { color: '#fff', fontSize: 16, textAlign: 'center', marginTop: 20, fontFamily: 'NovaSquare-Regular' },
+  noRequests: { color: '#fff', fontSize: 16, textAlign: 'center', marginTop: 20, fontFamily: theme.fonts.regular },
   iconWrapper: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -251,12 +363,13 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
+    // gap is not supported in React Native; use marginRight on children instead
   },
   acceptBtn: {
     backgroundColor: '#6BBF59',
     borderRadius: 4,
     padding: 6,
+    marginRight: 8, // Add spacing between buttons
   },
   rejectBtn: {
     backgroundColor: '#D9534F',
@@ -278,14 +391,15 @@ const styles = StyleSheet.create({
     padding: 6,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 8, // Add spacing between buttons
   },
   messageBtn: {
     backgroundColor: '#08A045',
     borderRadius: 4,
     padding: 6,
-    marginRight: 4,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 8, // Add spacing between buttons
   },
   verticalDivider: {
     width: 1,
