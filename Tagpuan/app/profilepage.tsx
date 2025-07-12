@@ -24,27 +24,30 @@ const ProfilePage = () => {
   const [loadingUser, setLoadingUser] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [userPosts, setUserPosts] = useState<string[]>([]);
-  const { tab } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const userId = params.userId as string | undefined;
+  const { tab } = params;
   const [activeTab, setActiveTab] = useState(tab === 'posts' ? 'posts' : 'details');
-  const [certifications, setCertifications] = useState<string[]>(userData?.certifications || []);
+  const [certifications, setCertifications] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
+      setLoadingUser(true);
+      const uid = userId || auth.currentUser?.uid;
+      if (!uid) return;
 
       try {
-        const userRef = doc(db, "users", currentUser.uid);
+        const userRef = doc(db, "users", uid);
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
           const data = userSnap.data();
           setUserData(data);
-          setUserPosts(data.posts || []); // <-- This adds the user's post images
+          setUserPosts(data.posts || []);
+          setCertifications(data.certifications || []);
         } else {
-          console.warn("No user document found for UID:", currentUser.uid);
+          console.warn("No user document found for UID:", uid);
         }
-
       } catch (error) {
         console.error("Error fetching user data:", error);
       } finally {
@@ -53,7 +56,7 @@ const ProfilePage = () => {
     };
 
     fetchUserData();
-  }, []);
+  }, [userId]);
 
   const handleEdit = () => {
     setEditedData(userData || {});
@@ -68,7 +71,8 @@ const ProfilePage = () => {
   const handleSave = async () => {
     if (!auth.currentUser) return;
     try {
-      const userRef = doc(db, "users", auth.currentUser.uid);
+      const uid = userId || auth.currentUser.uid;
+      const userRef = doc(db, "users", uid);
       await updateDoc(userRef, editedData);
       setUserData(editedData);
       setIsEditing(false);
@@ -78,11 +82,12 @@ const ProfilePage = () => {
   };
 
   const handlePickImage = async () => {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    quality: 1,
-  });
+    if (userId) return; // Only allow logged-in user to upload
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
 
     if (!result.canceled && result.assets?.[0]?.uri) {
       const newUri = result.assets[0].uri;
@@ -103,11 +108,12 @@ const ProfilePage = () => {
   };
 
   const handlePickCertification = async () => {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    quality: 1,
-  });
+    if (userId) return; // Only allow logged-in user to upload
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
 
     if (!result.canceled && result.assets?.[0]?.uri) {
       if (certifications.length >= 5) {
@@ -139,6 +145,8 @@ const ProfilePage = () => {
       </View>
     );
   }
+
+  const isOwnProfile = !userId || userId === auth.currentUser?.uid;
 
   return (
     <LinearGradient
@@ -201,8 +209,6 @@ const ProfilePage = () => {
           >
             <Text style={styles.tabText}>Details</Text>
           </TouchableOpacity>
-
-
         </View>
       </View>
 
@@ -211,7 +217,7 @@ const ProfilePage = () => {
           <>
             <View style={styles.detailsHeader}>
               <Text style={styles.detailsTitle}>User Details</Text>
-              {isEditing ? (
+              {isOwnProfile && (isEditing ? (
                 <View style={styles.editButtonsRow}>
                   <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveText}>Save</Text>
@@ -224,7 +230,7 @@ const ProfilePage = () => {
                 <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
                   <Text style={styles.editText}>Edit</Text>
                 </TouchableOpacity>
-              )}
+              ))}
             </View>
 
             <View style={styles.detailBox}>
@@ -299,18 +305,22 @@ const ProfilePage = () => {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.uploadButton} onPress={handlePickCertification}>
-                <Text style={styles.uploadText}>Upload Certification</Text>
-              </TouchableOpacity>
+              {isOwnProfile && (
+                <TouchableOpacity style={styles.uploadButton} onPress={handlePickCertification}>
+                  <Text style={styles.uploadText}>Upload Certification</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </>
         ) : (
           <>
             <View style={styles.postHeader}>
               <Text style={styles.detailsTitle}>Posts</Text>
-              <TouchableOpacity style={styles.uploadButton} onPress={handlePickImage}>
-                <Text style={styles.uploadText}>Upload</Text>
-              </TouchableOpacity>
+              {isOwnProfile && (
+                <TouchableOpacity style={styles.uploadButton} onPress={handlePickImage}>
+                  <Text style={styles.uploadText}>Upload</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {userPosts.length === 0 ? (

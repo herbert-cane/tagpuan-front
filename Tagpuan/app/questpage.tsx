@@ -1,24 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import QuestFilter from '../components/questfilter';
 import { router } from 'expo-router';
-import { auth, db } from '@/firebaseConfig';
-import { onSnapshot, collection } from 'firebase/firestore';
-
-type Quest = {
-  commodity: string;
-  duration: string;
-  price: number;
-  quantity: number;
-  address: string;
-  schedule: string;
-  modeOfPayment: string;
-  logistics: string;
-};
+import { auth } from '@/firebaseConfig';
 
 export default function QuestsPage() {
   const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -31,7 +19,8 @@ export default function QuestsPage() {
   const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
-  const [commodities, setCommodities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  // Removed unused hasActiveBid state
 
   const formatDate = (timestamp: number) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -50,13 +39,12 @@ export default function QuestsPage() {
     { id: 'bank', name: 'Bank Transfer' },
   ];
 
-  const mapQuestFields = (quest: any) => {
-    const commodityObj = commodities.find((c: any) => c.id === quest.commodity);
+  const mapQuestFields = (quest: any, contractorName: string) => {
     return {
-      contractorName: 'Juan Dela Cruz', // placeholder
-      commodity: commodityObj
-        ? `${commodityObj.en_name} (${commodityObj.hil_name})`
-        : quest.commodity,
+      contractId: quest.id,
+      contractor: contractorName,
+      contractorProfilePic: quest.contractorDetails?.profile_picture || null,
+      commodity: quest.commodity.name,
       quantity: quest.quantity + " " + quest.unit,
       price: "₱" + quest.price + "/" + quest.unit,
       schedule:
@@ -73,6 +61,9 @@ export default function QuestsPage() {
         const mode = deliveryModes.find((p: any) => p.id === quest.logistics);
         return mode ? mode.name : quest.logistics;
       })(),
+      hasActiveBid: quest.hasActiveBid,
+      bidStatus: quest.bidStatus || null,
+      bidId: quest.bidId || null,
     };
   };
 
@@ -91,18 +82,148 @@ export default function QuestsPage() {
         (!filters.logistics || quest.logistics === filters.logistics) &&
         (!filters.duration || quest.duration === filters.duration)
       );
-    }).map(mapQuestFields);
+    }).map((quest: any) => mapQuestFields(quest, quest.contractorName));
 
     setFilteredQuests(filtered);
   };
 
+  const fetchRequests = async () => {
+    let requestsLoaded = false;
+
+    const checkLoading = () => {
+      if (requestsLoaded) setLoading(false);
+    };
+
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+      const token = await user.getIdToken();
+      const response = await fetch(`${FIREBASE_API}/request/get/all`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`API error: ${response.status} - ${text}`);
+      }
+      const data = await response.json();
+      // const upForBidding = data.filter((req: any) => req.status === "Up for Bidding");
+
+      // Fetch contractor names and bid status for each quest
+      const questsWithDetails = await Promise.all(
+        data.map(async (quest: any) => {
+          try {
+            const contractorRes = await fetch(`${FIREBASE_API}/user/${quest.contractor_id}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            if (!contractorRes.ok) {
+              const text = await contractorRes.text();
+              throw new Error(`API error: ${contractorRes.status} - ${text}`);
+            }
+            const contractorData = await contractorRes.json();
+            const contractorName = contractorData.first_name + " " + contractorData.last_name || 'Unknown Contractor';
+            const contractorProfilePic = contractorData.profile_picture || null;
+
+            // Check if user has active bid for this request
+            const bidCheckRes = await fetch(`${FIREBASE_API}/bid/check/${quest.id}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            let hasActiveBid = false;
+            if (bidCheckRes.ok) {
+              const bidCheckData = await bidCheckRes.json();
+              hasActiveBid = !!bidCheckData.hasActiveBid.hasActiveBid;
+              // You can also get bid status if needed
+              quest.bidStatus = bidCheckData.hasActiveBid.status ?? null;
+              quest.bidId = bidCheckData.hasActiveBid.id ?? null;
+            }
+
+            console.log(`Quest ID: ${quest.id}, Contractor: ${contractorName}, Has Active Bid: ${hasActiveBid}`);
+          
+            return { ...quest, contractorName, contractorProfilePic, contractorDetails: contractorData, hasActiveBid, bidStatus: quest.bidStatus, bidId: quest.bidId };
+
+          } catch (error) {
+            console.error('Error fetching user details or bid status:', error);
+            return { ...quest, contractorName: 'Unknown Contractor', contractorProfilePic: null, contractorDetails: {}, hasActiveBid: false };
+          }
+        })
+      );
+
+      setRequests(questsWithDetails);
+      setFilteredQuests(questsWithDetails.map((quest: any) => mapQuestFields(quest, quest.contractorName)));
+      requestsLoaded = true;
+      checkLoading();
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+      requestsLoaded = true;
+      checkLoading();
+    }
+  };
+
   useEffect(() => {
-    const fetchRequests = async () => {
+    fetchRequests();
+  }, []);
+
+  if (loading) {
+    return (
+      <LinearGradient style={styles.container} colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#DDB771" />
+          <Text style={styles.loadingText}>Loading quests...</Text>
+        </View>
+        <StatusBar style="auto" />
+      </LinearGradient>
+    );
+  }
+
+  const createBid = async () => {
+      console.log('Creating bid for:', selectedQuest);
+      if (!selectedQuest) return;
       try {
         const user = auth.currentUser;
         if (!user) throw new Error('User not authenticated');
         const token = await user.getIdToken();
-        const response = await fetch(`${FIREBASE_API}/request/get/all`, {
+        const response = await fetch(`${FIREBASE_API}/bid/create`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            request_id: selectedQuest.contractId,
+            farmer_id: user.uid,
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          alert(`Error creating bid: ${text}`);
+          throw new Error(`API error: ${response.status} - ${text}`);
+        }
+        await fetchRequests();
+        alert('Bid created successfully!');
+        setConfirmVisible(false);
+        fetchRequests(); // Refresh the quest list
+      } catch (error) {
+        console.error('Error creating bid:', error);
+      }
+    };
+
+  const withdrawBid = async () => {
+      console.log('Withdrawing bid for:', selectedQuest);
+      if (!selectedQuest) return;
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated');
+        const token = await user.getIdToken();
+        const response = await fetch(`${FIREBASE_API}/bid/withdraw/${selectedQuest.bidId}`, {
+          method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -110,37 +231,70 @@ export default function QuestsPage() {
         });
         if (!response.ok) {
           const text = await response.text();
+          alert(`Error withdrawing bid: ${text}`);
           throw new Error(`API error: ${response.status} - ${text}`);
         }
-        const data = await response.json();
-        setRequests(data);
-        setFilteredQuests(data.map(mapQuestFields));
+        await fetchRequests();
+        alert('Bid withdrawn successfully!');
+        setConfirmVisible(false);
       } catch (error) {
-        console.error('Error fetching requests:', error);
+        console.error('Error withdrawing bid:', error);
       }
-    };
+  }
 
-    fetchRequests();
-  }, []);
-
-  useEffect(() => {
-    const commoditiesList = onSnapshot(
-      collection(db, "commodities"),
-      (snapshot) => {
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setCommodities(items);
-        console.log('Commodities:', items);
-      },
-      (error) => {
-        console.error("Error fetching commodities:", error);
+  const rebid = async () => {
+      console.log('Re-bidding for:', selectedQuest);
+      if (!selectedQuest) return;
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated');
+        const token = await user.getIdToken();
+        const response = await fetch(`${FIREBASE_API}/bid/rebid/${selectedQuest.bidId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          alert(`Error withdrawing bid: ${text}`);
+          throw new Error(`API error: ${response.status} - ${text}`);
+        }
+        await fetchRequests();
+        alert('Successfully confirmed re-bidding!');
+        setConfirmVisible(false);
+      } catch (error) {
+        console.error('Error withdrawing bid:', error);
       }
-    );
+  }
 
-    return () => commoditiesList();
-  }, []);
+  // Array for text and button styles
+  const bidButtonOptions = [
+    {
+      condition: (isActive: boolean, status?: string) => !isActive,
+      text: 'Bid',
+      color: '#FFFFFF',
+      modalColor: '#08A045',
+    },
+    {
+      condition: (isActive: boolean, status?: string) => isActive && status === 'Pending',
+      text: 'Withdraw',
+      color: '#D9534F',
+      modalColor: '#D9534F',
+    },
+    {
+      condition: (isActive: boolean, status?: string) => isActive && status === 'Withdrawn',
+      text: 'Re-bid',
+      color: '#FFFFFF',
+      modalColor: '#08A045',
+    },
+        {
+      condition: (isActive: boolean, status?: string) => isActive && status === 'Won' || status === 'Lost',
+      text: 'View',
+      color: '#FFE699',
+    }
+  ];
 
   return (
     <LinearGradient style={styles.container} colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']}>
@@ -161,40 +315,55 @@ export default function QuestsPage() {
           <View key={index} style={styles.questCardWrapper}>
             <TouchableOpacity style={styles.questCard} onPress={() => console.log('Quest Card Pressed')}>
               <View style={styles.cardHeader}>
-                <Ionicons name="person-circle" size={38} color="#808080" />
-                <View style={styles.questDetails}>
-
-                  <View style={styles.row}>
-                    <Text style={styles.label}>Contractor:</Text>
-                    <Text style={styles.value}>{quest.contractorName}</Text>
-                  </View>
-
-                  {Object.entries(quest).map(([key, value]) => {
-                    if (key === 'contractorName') return null; // skip duplicate
-                    return (
-                      <View key={key} style={styles.row}>
-                        <Text style={styles.label}>
-                          {key === 'modeOfPayment'
-                            ? 'Mode of Payment:'
-                            : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
-                        </Text>
-                        <Text style={styles.value}>{String(value)}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
+          {quest.contractorProfilePic ? (
+            <Image
+              source={{ uri: quest.contractorProfilePic }}
+              style={{ width: 38, height: 38, borderRadius: 19 }}
+            />
+          ) : (
+            <Ionicons name="person-circle" size={38} color="#808080" />
+          )}
+            <View style={styles.questDetails}>
+            {Object.entries(quest).map(([key, value]) => {
+              if (
+                key === 'contractorProfilePic' ||
+                key === 'hasActiveBid' ||
+                key === 'contractId' ||
+                key === 'bidId' ||
+                key === 'bidStatus'             
+              )
+              return null;
+              return (
+              <View key={key} style={styles.row}>
+                <Text style={styles.label}>
+                {key === 'modeOfPayment'
+                  ? 'Mode of Payment:'
+                  : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
+                </Text>
+                <Text style={styles.value}>{String(value)}</Text>
+              </View>
+              );
+            })}
+            </View>
               </View>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.bidButton}
-              onPress={() => {
+            {bidButtonOptions.map((option, idx) =>
+              option.condition(quest.hasActiveBid, quest.bidStatus) ? (
+              <TouchableOpacity
+                key={idx}
+                style={[
+                !quest.hasActiveBid ? styles.bidButton : styles.withdrawButton,
+                { backgroundColor: option.color }
+                ]}
+                onPress={() => {
                 setSelectedQuest(quest);
                 setConfirmVisible(true);
-              }}
-            >
-              <Text style={styles.bidButtonText}>BID</Text>
-            </TouchableOpacity>
+                }}
+              >
+                <Text style={styles.bidButtonText}>{option.text}</Text>
+              </TouchableOpacity>
+              ) : null
+            )}
           </View>
         ))}
       </ScrollView>
@@ -209,53 +378,95 @@ export default function QuestsPage() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Confirm Bid</Text>
-
             {selectedQuest && (
               <View style={{ marginBottom: 10 }}>
-                <Text style={styles.modalDetail}>
-                  <Text style={styles.modalLabel}>Contractor Name:</Text> {selectedQuest.contractorName}
-                </Text>
+                {selectedQuest.hasActiveBid ? 
+                selectedQuest.bidStatus === 'Pending' ?
+                (
+                  <Text style={styles.modalTitle}>Withdraw Bid</Text>
+                ) 
+                :
+                (
+                  <Text style={styles.modalTitle}>Re-bid</Text>
+                )     
+                : (
+                <Text style={styles.modalTitle}>Confirm Bid</Text>)}
 
                 {Object.entries(selectedQuest).map(([key, value]) => {
-                  if (key === 'contractorName') return null; // skip duplicate
+                  if (
+                    key === 'contractorProfilePic' ||
+                    key === 'hasActiveBid' ||
+                    key === 'contractId' ||
+                    key === 'bidId' ||
+                    key === 'bidStatus'  
+                  )
+                  return null;
                   return (
-                    <Text key={key} style={styles.modalDetail}>
-                      <Text style={styles.modalLabel}>
-                        {key === 'modeOfPayment'
-                          ? 'Mode of Payment:'
-                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
-                      </Text>{' '}
-                      {String(value)}
+                  <View key={key} style={styles.row}>
+                    <Text style={styles.modalDetail}>
+                    {key === 'modeOfPayment'
+                      ? 'Mode of Payment:'
+                      : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
                     </Text>
+                    <Text style={styles.modalLabel}>{String(value)}</Text>
+                  </View>
                   );
                 })}
               </View>
             )}
 
-            <View style={{ marginTop: 20 }}>
-              <Text style={[styles.modalDetail, { textAlign: 'center' }]}>
-                <Text style={styles.modalLabel}>Are you sure you want to bid for this quest?</Text>
-              </Text>
-            </View>
+            <View style={[styles.modalActions, { flexDirection: 'column', alignItems: 'stretch' }]}>
+              {selectedQuest && selectedQuest.hasActiveBid && (selectedQuest.bidStatus === 'Won' || selectedQuest.bidStatus == 'Lost') ? 
+              selectedQuest.bidStatus === 'Won' ?
+              (<Text style={styles.modalStatus}> You have won this bid. </Text>)
+              :
+              (<Text style={styles.modalStatus}> You have lost this bid. </Text>)
+              :
+              <>
+              <Text
+              style={[
+              styles.modalDetail,
+              { textAlign: 'center' },
+              selectedQuest && selectedQuest.hasActiveBid && selectedQuest.bidStatus === 'Pending'
+                ? { color: '#D9534F' }
+                : {}
+              ]}
+            >
+              {selectedQuest && selectedQuest.hasActiveBid
+              ? selectedQuest.bidStatus === 'Pending'
+                ? 'Are you sure you want to withdraw your bid?'
+                : 'Are you sure you want to re-bid for this quest?'
+              : 'Are you sure you want to bid for this quest?'}
+            </Text>
+            
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#D9534F' }]}
-                onPress={() => setConfirmVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#08A045' }]}
+              {bidButtonOptions.map((option, idx) =>
+              selectedQuest && option.condition(selectedQuest.hasActiveBid, selectedQuest.bidStatus) ? (
+                <TouchableOpacity
+                key={idx}
+                style={[styles.modalButton, { backgroundColor: option.modalColor, marginVertical: 5, width: '100%' }]}
                 onPress={() => {
-                  console.log('Bid confirmed for:', selectedQuest);
+                  if (option.text === 'Bid') {
+                  createBid();
+                  } else if (option.text === 'Withdraw') {
+                  withdrawBid();
+                  } else if (option.text === 'Re-bid') {
+                  rebid();
+                  }
                   setConfirmVisible(false);
                 }}
-              >
-                <Text style={styles.modalButtonText}>Confirm</Text>
+                >
+                <Text style={styles.modalButtonText}>{option.text}</Text>
+                </TouchableOpacity>
+              ) : null
+              )}
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#808080', marginVertical: 5, width: '100%' }]}
+                onPress={() => setConfirmVisible(false)}
+                >
+                <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
+              </>}
             </View>
           </View>
         </View>
@@ -313,19 +524,51 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
     marginTop: 20,
   },
   modalButton: {
-    flex: 1,
     paddingVertical: 10,
     borderRadius: 6,
     alignItems: 'center',
-    marginHorizontal: 5,
+    marginHorizontal: 0,
+    marginVertical: 5,
+    width: '100%',
   },
   modalButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  modalStatus: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    justifyContent: 'center',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+    marginBottom: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#DDB771',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  withdrawButton: {
+    backgroundColor: '#D9534F',
+    paddingVertical: 6,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+    width: 120,
+    elevation: 3,
   },
 });

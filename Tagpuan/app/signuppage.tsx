@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, Image,
   StyleSheet, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, Alert
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -30,6 +30,8 @@ const Register = () => {
   const [paymentSelected, setPaymentSelected] = useState<string[]>([]);
   const [deliverySelected, setModeOfDelivery] = useState<string[]>([]);
   const [commodities, setCommodities] = useState<Array<{ id: string; [key: string]: any }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const paymentList = [
     { id: 'cod', name: 'Cash On Delivery' },
@@ -44,7 +46,6 @@ const Register = () => {
 
   ];
 
-
   useEffect(() => {
     const commoditiesList = onSnapshot(
       collection(db, "commodities"),
@@ -54,7 +55,6 @@ const Register = () => {
           ...doc.data()
         }));
         setCommodities(items);
-        console.log('Commodities:', commodities);
       },
       (error) => {
         console.error("Error fetching commodities:", error);
@@ -81,108 +81,125 @@ const Register = () => {
     }
   };
 
- const handleRegister = async () => {
-  if (
-    !username || !email || !password || !firstName || !lastName ||
-    !selectedRole || !frontID || !backID
-  ) {
-    Alert.alert("Missing Fields", "Please fill out all required fields.");
-    return;
-  }
+  const handleRegister = async () => {
+    if (
+      !username || !email || !password || !firstName || !lastName ||
+      !selectedRole || !frontID || !backID
+    ) {
+      Alert.alert("Missing Fields", "Please fill out all required fields.");
+      return;
+    }
 
-  if (selectedRole === "Farmer" &&
-    (!commoditiesSelected || !paymentSelected || !deliverySelected)
-  ) {
-    Alert.alert("Incomplete Farmer Details", "Please provide all required farmer information.");
-    return;
-  }
+    if (selectedRole === "Farmer" &&
+      (!commoditiesSelected || !paymentSelected || !deliverySelected)
+    ) {
+      Alert.alert("Incomplete Farmer Details", "Please provide all required farmer information.");
+      return;
+    }
 
-  try {
-    // Pre-fetch and convert images FIRST
-    const frontRes = await fetch(frontID.uri);
-    const frontIDBlob = await frontRes.blob();
-    const backRes = await fetch(backID.uri);
-    const backIDBlob = await backRes.blob();
+    if (password !== confirmPassword) {
+      Alert.alert("Password Mismatch", "Passwords do not match.");
+      return;
+    }
 
-    // Ready to commit — create user last
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    setLoading(true);
+    try {
+      // Pre-fetch and convert images FIRST
+      const frontRes = await fetch(frontID.uri);
+      const frontIDBlob = await frontRes.blob();
+      const backRes = await fetch(backID.uri);
+      const backIDBlob = await backRes.blob();
 
-    const frontIDRef = ref(storage, `users/${user.uid}/frontID.jpg`);
-    const backIDRef = ref(storage, `users/${user.uid}/backID.jpg`);
+      // Ready to commit — create user last
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    await uploadBytes(frontIDRef, frontIDBlob);
-    await uploadBytes(backIDRef, backIDBlob);
+      const frontIDRef = ref(storage, `users/${user.uid}/frontID.jpg`);
+      const backIDRef = ref(storage, `users/${user.uid}/backID.jpg`);
 
-    const frontIDUrl = await getDownloadURL(frontIDRef);
-    const backIDUrl = await getDownloadURL(backIDRef);
+      await uploadBytes(frontIDRef, frontIDBlob);
+      await uploadBytes(backIDRef, backIDBlob);
 
-    await updateProfile(user, { displayName: username });
+      const frontIDUrl = await getDownloadURL(frontIDRef);
+      const backIDUrl = await getDownloadURL(backIDRef);
 
-    const basePayload = {
-      uid: user.uid,
-      username,
-      email,
-      first_name: firstName,
-      middle_name: middleName || null,
-      last_name: lastName,
-      role: selectedRole,
-      frontIDUrl,
-      backIDUrl
-    };
+      await updateProfile(user, { displayName: username });
 
-    const fullPayload = selectedRole === "Farmer"
-      ? {
-          ...basePayload,
-          farmer_details: {
-            commodity: commoditiesSelected,
-            paymentTerms: paymentSelected,
-            modeOfDelivery: deliverySelected
+      const basePayload = {
+        uid: user.uid,
+        username,
+        email,
+        first_name: firstName,
+        middle_name: middleName || null,
+        last_name: lastName,
+        role: selectedRole,
+        frontIDUrl,
+        backIDUrl
+      };
+
+      const fullPayload = selectedRole === "Farmer"
+        ? {
+            ...basePayload,
+            farmer_details: {
+              commodity: commoditiesSelected,
+              paymentTerms: paymentSelected,
+              modeOfDelivery: deliverySelected
+            }
           }
-        }
-      : basePayload;
+        : basePayload;
 
+      const response = await fetch(`${FIREBASE_API}/user/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fullPayload)
+      });
 
-    const response = await fetch(`${FIREBASE_API}/user/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fullPayload)
-    });
+      const responseBody = await response.text();
 
-    const responseBody = await response.text();
-    console.log("Backend response:", response.status, responseBody);
-
-    if (!response.ok) {
-      // 🔥 Clean up uploaded files if backend registration fails
-      await deleteObject(frontIDRef).catch(() =>
-        console.warn("Failed to delete front ID image")
-      );
-      await deleteObject(backIDRef).catch(() =>
-        console.warn("Failed to delete back ID image")
-      );
-      throw new Error("Registration failed. Please try again.");
-    }
-
-
-    Alert.alert("Success", "Registration complete!", [
-      { text: "OK", onPress: () => router.push("/") }
-    ]);
-  } catch (error: any) {
-    console.error("Registration Error:", error);
-
-    if (auth.currentUser) {
-      // Clean up if Firebase Auth user was created
-      try {
-        await auth.currentUser.delete();
-      } catch (cleanupErr) {
-        console.warn("User cleanup failed:", cleanupErr);
+      if (!response.ok) {
+        // 🔥 Clean up uploaded files if backend registration fails
+        await deleteObject(frontIDRef).catch(() =>
+          console.warn("Failed to delete front ID image")
+        );
+        await deleteObject(backIDRef).catch(() =>
+          console.warn("Failed to delete back ID image")
+        );
+        throw new Error("Registration failed. Please try again.");
       }
+
+      setLoading(false);
+      Alert.alert("Success", "Registration complete!", [
+        { text: "OK", onPress: () => router.replace("/") }
+      ]);
+    } catch (error: any) {
+      setLoading(false);
+      if (auth.currentUser) {
+        // Clean up if Firebase Auth user was created
+        try {
+          await auth.currentUser.delete();
+        } catch (cleanupErr) {
+          console.warn("User cleanup failed:", cleanupErr);
+        }
+      }
+      Alert.alert("Registration Error", error?.message || "Something went wrong.");
     }
+  };
 
-    Alert.alert("Registration Error", error?.message || "Something went wrong.");
+  if (loading) {
+    return (
+      <LinearGradient
+        style={styles.container}
+        colors={["#073B3A", "#0B6E4F", "#08A045", "#6BBF59"]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#DDB771" />
+          <Text style={styles.loadingText}>Signing up...</Text>
+        </View>
+      </LinearGradient>
+    );
   }
-};
-
 
   return (
     <LinearGradient
@@ -217,6 +234,7 @@ const Register = () => {
             <TextInput placeholder="Username" style={styles.input} placeholderTextColor="#fff" value={username} onChangeText={setUsername} />
             <TextInput placeholder="Email" style={styles.input} keyboardType="email-address" placeholderTextColor="#fff" value={email} onChangeText={setEmail} />
             <TextInput placeholder="Password" style={styles.input} secureTextEntry placeholderTextColor="#fff" value={password} onChangeText={setPassword} />
+            <TextInput placeholder="Confirm Password" style={styles.input} secureTextEntry placeholderTextColor="#fff" value={confirmPassword} onChangeText={setConfirmPassword} />
             <TextInput placeholder="First Name" style={styles.input} placeholderTextColor="#fff" value={firstName} onChangeText={setFirstName} />
             <TextInput placeholder="Middle Name" style={styles.input} placeholderTextColor="#fff" value={middleName} onChangeText={setMiddleName} />
             <TextInput placeholder="Last Name" style={styles.input} placeholderTextColor="#fff" value={lastName} onChangeText={setLastName} />
@@ -249,7 +267,6 @@ const Register = () => {
                   </TouchableOpacity>
                 );
               })}
-
 
               <Text style={styles.subLabel}>Payment Terms</Text>
               {paymentList.map((item) => {
@@ -434,6 +451,8 @@ const styles = StyleSheet.create({
   registerButtonWrapper: { width: "60%", backgroundColor: "#DDB771", paddingVertical: 12, borderRadius: 10, alignItems: "center" },
   registerButtonText: { color: "#000", fontSize: 18, fontWeight: "bold", textTransform: "uppercase" },
   image: { width: 110, height: 110, borderRadius: 10, marginVertical: 10, alignSelf: "center" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 20, color: "#DDB771", fontSize: 18, fontWeight: "bold" },
 });
 
 export default Register;

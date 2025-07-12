@@ -82,8 +82,8 @@ const MakeRequestScreen: React.FC = () => {
   const handleValueChange = (key: keyof DropdownOptions, value: string) => {
     setSelectedValues((prevValues) => ({ ...prevValues, [key]: value }));
     if (key === 'Commodity') {
-      setIsCustomCommodity(value === 'Other');
-      setCustomCommodity(value === 'Other' ? '' : value);
+      setIsCustomCommodity(value === 'other');
+      setCustomCommodity(value === 'other' ? '' : customCommodity);
     }
   };
 
@@ -128,8 +128,22 @@ const createRequest = () => {
     return;
   }
 
+  // If "other" is selected and no custom value is entered, show error and send empty string
+  let commodityValue = '';
+  if (isCustomCommodity) {
+    if (!customCommodity.trim()) {
+      newErrors.customCommodity = true;
+      setErrors(newErrors);
+      alert('Please enter a custom commodity.');
+      return;
+    }
+    commodityValue = customCommodity.trim();
+  } else if (selectedValues.Commodity && selectedValues.Commodity !== 'other') {
+    commodityValue = selectedValues.Commodity;
+  }
+
   const requestData = {
-    commodity: isCustomCommodity ? customCommodity : selectedValues.Commodity,
+    commodity: commodityValue,
     quantity: Number(amount),
     unit: amountUnit,
     price: Number(price),
