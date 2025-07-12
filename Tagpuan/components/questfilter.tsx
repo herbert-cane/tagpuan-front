@@ -3,15 +3,17 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 
 const filterOptions = {
-  commodity: ['Chicken', 'Beef', 'Pork'],
-  contractType: ['Bulk', 'Singular'],
-  schedule: ['5 days', '2 wks', '3 wks'],
+  commodity: ['chicken', 'beef', 'pork'],
+  payment_terms: ['cod', 'bank', 'gcash', 'maya'],
+  logistics: ['pickup', 'delivery'],
+  duration: ['Single Order', 'Weekly', 'Monthly'],
 };
 
 type SelectedFilters = {
   commodity?: string;
-  contractType?: string;
-  schedule?: string;
+  payment_terms?: string;
+  logistics?: string;
+  duration?: string;
 };
 
 type QuestFilterProps = {
@@ -38,15 +40,21 @@ const QuestFilter: React.FC<QuestFilterProps> = ({ visible, onClose, onApply }) 
           <ScrollView>
             {Object.keys(filterOptions).map((category) => (
               <View key={category} style={styles.categoryContainer}>
-                <Text style={styles.categoryTitle}>{category.toUpperCase()}</Text>
+                <Text style={styles.categoryTitle}>{category.replace('_', ' ').toUpperCase()}</Text>
                 {(filterOptions as any)[category].map((option: string) => (
-                  <TouchableOpacity key={option} style={styles.option} onPress={() => toggleFilter(category as keyof SelectedFilters, option)}>
+                  <TouchableOpacity
+                    key={option}
+                    style={styles.option}
+                    onPress={() => toggleFilter(category as keyof SelectedFilters, option)}
+                  >
                     <Ionicons
                       name={selectedFilters[category as keyof SelectedFilters] === option ? 'checkbox' : 'square-outline'}
                       size={24}
                       color="green"
                     />
-                    <Text style={styles.optionText}>{option}</Text>
+                    <Text style={styles.optionText}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -81,6 +89,7 @@ const styles = StyleSheet.create({
     width: '80%',
     padding: 20,
     borderRadius: 10,
+    maxHeight: '80%',
   },
   title: {
     fontSize: 20,

@@ -25,13 +25,13 @@ export default function QuestsPage() {
   if (!FIREBASE_API) {
     throw new Error('FIREBASE_API URL is not set. Please check your environment configuration.');
   }
+
   const [filterVisible, setFilterVisible] = useState(false);
   const [filteredQuests, setFilteredQuests] = useState<any[]>([]);
   const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [commodities, setCommodities] = useState<any[]>([]);
-
 
   const formatDate = (timestamp: number) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -43,7 +43,7 @@ export default function QuestsPage() {
     { id: 'delivery', name: 'Delivery' },
   ];
 
-    const paymentList = [
+  const paymentList = [
     { id: 'cod', name: 'Cash On Delivery' },
     { id: 'gcash', name: 'GCash (E-Wallet)' },
     { id: 'maya', name: 'Maya (E-Wallet)' },
@@ -53,15 +53,16 @@ export default function QuestsPage() {
   const mapQuestFields = (quest: any) => {
     const commodityObj = commodities.find((c: any) => c.id === quest.commodity);
     return {
+      contractorName: 'Juan Dela Cruz', // placeholder
       commodity: commodityObj
-      ? `${commodityObj.en_name} (${commodityObj.hil_name})`
-      : quest.commodity,
+        ? `${commodityObj.en_name} (${commodityObj.hil_name})`
+        : quest.commodity,
       quantity: quest.quantity + " " + quest.unit,
       price: "₱" + quest.price + "/" + quest.unit,
       schedule:
-      quest.schedule && typeof quest.schedule === "object" && "_seconds" in quest.schedule
-        ? `On or before ${formatDate(quest.schedule._seconds * 1000)}`
-        : "Unknown",
+        quest.schedule && typeof quest.schedule === "object" && "_seconds" in quest.schedule
+          ? `On or before ${formatDate(quest.schedule._seconds * 1000)}`
+          : "Unknown",
       address: quest.address,
       duration: quest.duration,
       modeOfPayment: (() => {
@@ -70,17 +71,24 @@ export default function QuestsPage() {
       })(),
       logistics: (() => {
         const mode = deliveryModes.find((p: any) => p.id === quest.logistics);
-        return mode ? mode.name : quest.payment_terms;
+        return mode ? mode.name : quest.logistics;
       })(),
     };
   };
 
-  const applyFilters = (filters: { commodity?: string; contractType?: string; duration?: string }) => {
+  const applyFilters = (filters: {
+    commodity?: string;
+    payment_terms?: string;
+    logistics?: string;
+    duration?: string;
+  }) => {
     setFilterVisible(false);
 
     const filtered = requests.filter((quest) => {
       return (
         (!filters.commodity || quest.commodity === filters.commodity) &&
+        (!filters.payment_terms || quest.payment_terms === filters.payment_terms) &&
+        (!filters.logistics || quest.logistics === filters.logistics) &&
         (!filters.duration || quest.duration === filters.duration)
       );
     }).map(mapQuestFields);
@@ -155,16 +163,25 @@ export default function QuestsPage() {
               <View style={styles.cardHeader}>
                 <Ionicons name="person-circle" size={38} color="#808080" />
                 <View style={styles.questDetails}>
-                  {Object.entries(quest).map(([key, value]) => (
-                    <View key={key} style={styles.row}>
+
+                  <View style={styles.row}>
+                    <Text style={styles.label}>Contractor:</Text>
+                    <Text style={styles.value}>{quest.contractorName}</Text>
+                  </View>
+
+                  {Object.entries(quest).map(([key, value]) => {
+                    if (key === 'contractorName') return null; // skip duplicate
+                    return (
+                      <View key={key} style={styles.row}>
                         <Text style={styles.label}>
-                        {key === 'modeOfPayment'
-                          ? 'Mode of Payment:'
-                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
+                          {key === 'modeOfPayment'
+                            ? 'Mode of Payment:'
+                            : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
                         </Text>
-                      <Text style={styles.value}>{String(value)}</Text>
-                    </View>
-                  ))}
+                        <Text style={styles.value}>{String(value)}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             </TouchableOpacity>
@@ -196,13 +213,23 @@ export default function QuestsPage() {
 
             {selectedQuest && (
               <View style={{ marginBottom: 10 }}>
-                {Object.entries(selectedQuest).map(([key, value]) => (
-                  <Text key={key} style={styles.modalDetail}>
-                    <Text style={styles.modalLabel}>{key === 'modeOfPayment'
+                <Text style={styles.modalDetail}>
+                  <Text style={styles.modalLabel}>Contractor Name:</Text> {selectedQuest.contractorName}
+                </Text>
+
+                {Object.entries(selectedQuest).map(([key, value]) => {
+                  if (key === 'contractorName') return null; // skip duplicate
+                  return (
+                    <Text key={key} style={styles.modalDetail}>
+                      <Text style={styles.modalLabel}>
+                        {key === 'modeOfPayment'
                           ? 'Mode of Payment:'
-                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}</Text> {String(value)}
-                  </Text>
-                ))}
+                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
+                      </Text>{' '}
+                      {String(value)}
+                    </Text>
+                  );
+                })}
               </View>
             )}
 
