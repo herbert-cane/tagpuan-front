@@ -1,45 +1,138 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import QuestFilter from '../components/questfilter';
 import { router } from 'expo-router';
-
-const questsData = [
-  { commodity: 'Chicken', contractType: 'Bulk', price: '90/kg', schedule: '2 wks', delivery: 'Sunshine Farms, Kalibo, Aklan' },
-  { commodity: 'Chicken', contractType: 'Singular', price: '80/kg', schedule: '3 wks', delivery: 'House 2, Camelot, Sapian, Capiz' },
-  { commodity: 'Chicken', contractType: 'Bulk', price: '200/kg', schedule: '5 days', delivery: 'Balay Guimaraila, Miagao, Iloilo' },
-];
+import { auth, db } from '@/firebaseConfig';
+import { onSnapshot, collection } from 'firebase/firestore';
 
 type Quest = {
   commodity: string;
-  contractType: string;
-  price: string;
+  duration: string;
+  price: number;
+  quantity: number;
+  address: string;
   schedule: string;
-  delivery: string;
+  modeOfPayment: string;
+  logistics: string;
 };
 
 export default function QuestsPage() {
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
+  if (!FIREBASE_API) {
+    throw new Error('FIREBASE_API URL is not set. Please check your environment configuration.');
+  }
   const [filterVisible, setFilterVisible] = useState(false);
-  const [filteredQuests, setFilteredQuests] = useState(questsData);
-  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+  const [filteredQuests, setFilteredQuests] = useState<any[]>([]);
+  const [selectedQuest, setSelectedQuest] = useState<any | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [commodities, setCommodities] = useState<any[]>([]);
 
 
-  const applyFilters = (filters: { commodity?: string; contractType?: string }) => {
+  const formatDate = (timestamp: number) => {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(timestamp).toLocaleDateString(undefined, options);
+  };
+
+  const deliveryModes = [
+    { id: 'pickup', name: 'Pickup' },
+    { id: 'delivery', name: 'Delivery' },
+  ];
+
+    const paymentList = [
+    { id: 'cod', name: 'Cash On Delivery' },
+    { id: 'gcash', name: 'GCash (E-Wallet)' },
+    { id: 'maya', name: 'Maya (E-Wallet)' },
+    { id: 'bank', name: 'Bank Transfer' },
+  ];
+
+  const mapQuestFields = (quest: any) => {
+    const commodityObj = commodities.find((c: any) => c.id === quest.commodity);
+    return {
+      commodity: commodityObj
+      ? `${commodityObj.en_name} (${commodityObj.hil_name})`
+      : quest.commodity,
+      quantity: quest.quantity + " " + quest.unit,
+      price: "₱" + quest.price + "/" + quest.unit,
+      schedule:
+      quest.schedule && typeof quest.schedule === "object" && "_seconds" in quest.schedule
+        ? `On or before ${formatDate(quest.schedule._seconds * 1000)}`
+        : "Unknown",
+      address: quest.address,
+      duration: quest.duration,
+      modeOfPayment: (() => {
+        const payment = paymentList.find((p: any) => p.id === quest.payment_terms);
+        return payment ? payment.name : quest.payment_terms;
+      })(),
+      logistics: (() => {
+        const mode = deliveryModes.find((p: any) => p.id === quest.logistics);
+        return mode ? mode.name : quest.payment_terms;
+      })(),
+    };
+  };
+
+  const applyFilters = (filters: { commodity?: string; contractType?: string; duration?: string }) => {
     setFilterVisible(false);
-    
-    const filtered = questsData.filter((quest) => {
+
+    const filtered = requests.filter((quest) => {
       return (
         (!filters.commodity || quest.commodity === filters.commodity) &&
-        (!filters.contractType || quest.contractType === filters.contractType)
+        (!filters.duration || quest.duration === filters.duration)
       );
-    });
+    }).map(mapQuestFields);
 
     setFilteredQuests(filtered);
   };
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('User not authenticated');
+        const token = await user.getIdToken();
+        const response = await fetch(`${FIREBASE_API}/request/get/all`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`API error: ${response.status} - ${text}`);
+        }
+        const data = await response.json();
+        setRequests(data);
+        setFilteredQuests(data.map(mapQuestFields));
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+      }
+    };
+
+    fetchRequests();
+  }, []);
+
+  useEffect(() => {
+    const commoditiesList = onSnapshot(
+      collection(db, "commodities"),
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCommodities(items);
+        console.log('Commodities:', items);
+      },
+      (error) => {
+        console.error("Error fetching commodities:", error);
+      }
+    );
+
+    return () => commoditiesList();
+  }, []);
 
   return (
     <LinearGradient style={styles.container} colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']}>
@@ -64,8 +157,12 @@ export default function QuestsPage() {
                 <View style={styles.questDetails}>
                   {Object.entries(quest).map(([key, value]) => (
                     <View key={key} style={styles.row}>
-                      <Text style={styles.label}>{key.charAt(0).toUpperCase() + key.slice(1)}:</Text>
-                      <Text style={styles.value}>{value}</Text>
+                        <Text style={styles.label}>
+                        {key === 'modeOfPayment'
+                          ? 'Mode of Payment:'
+                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
+                        </Text>
+                      <Text style={styles.value}>{String(value)}</Text>
                     </View>
                   ))}
                 </View>
@@ -86,7 +183,7 @@ export default function QuestsPage() {
       </ScrollView>
 
       <QuestFilter visible={filterVisible} onClose={() => setFilterVisible(false)} onApply={applyFilters} />
-      
+
       <Modal
         visible={confirmVisible}
         transparent
@@ -101,11 +198,19 @@ export default function QuestsPage() {
               <View style={{ marginBottom: 10 }}>
                 {Object.entries(selectedQuest).map(([key, value]) => (
                   <Text key={key} style={styles.modalDetail}>
-                    <Text style={styles.modalLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}:</Text> {value}
+                    <Text style={styles.modalLabel}>{key === 'modeOfPayment'
+                          ? 'Mode of Payment:'
+                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}</Text> {String(value)}
                   </Text>
                 ))}
               </View>
             )}
+
+            <View style={{ marginTop: 20 }}>
+              <Text style={[styles.modalDetail, { textAlign: 'center' }]}>
+                <Text style={styles.modalLabel}>Are you sure you want to bid for this quest?</Text>
+              </Text>
+            </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
