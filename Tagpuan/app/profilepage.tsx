@@ -292,6 +292,45 @@ const ProfilePage = () => {
                 <Text style={styles.details}>Role: {userData?.role}</Text>
               )}
             </View>
+
+            {/* Products Offered */}
+            <View style={styles.detailBox}>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={editedData.products_offered}
+                  onChangeText={(text) =>
+                    setEditedData({ ...editedData, products_offered: text })
+                  }
+                  placeholder="Products Offered"
+                  placeholderTextColor="#999"
+                />
+              ) : (
+                <Text style={styles.details}>
+                  Products Offered: {userData?.products_offered || "Not specified"}
+                </Text>
+              )}
+            </View>
+
+            {/* Mode of Delivery */}
+            <View style={styles.detailBox}>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={editedData.mode_of_delivery}
+                  onChangeText={(text) =>
+                    setEditedData({ ...editedData, mode_of_delivery: text })
+                  }
+                  placeholder="Mode of Delivery"
+                  placeholderTextColor="#999"
+                />
+              ) : (
+                <Text style={styles.details}>
+                  Mode of Delivery: {userData?.mode_of_delivery || "Not specified"}
+                </Text>
+              )}
+            </View>
+
             <View style={styles.detailBox}>
               <Text style={styles.details}>Certifications:</Text>
 

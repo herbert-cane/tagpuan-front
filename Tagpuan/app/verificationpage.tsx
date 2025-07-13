@@ -6,11 +6,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
 
 const applicants = [
-  { id: '1', name: 'Juan Dela Cruz', firstName: 'Juan', middleName: 'One', lastName: 'Dela Cruz', username: 'Juan', email: 'juandelacruz@gmail.com', role: 'Farmer', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '2', name: 'Sandra Xu Yen', firstName: 'Sandra', middleName: 'Two', lastName: 'Xu Yen', username: 'Sandra', email: 'sandraxuyen@gmail.com', role: 'Merchant', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '3', name: 'Ate Gina', firstName: 'Gina', middleName: 'Three', lastName: '', username: 'Gina', email: 'ategina@gmail.com', role: 'Vendor', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '4', name: 'Bossing Tom', firstName: 'Tom', middleName: 'Four', lastName: '', username: 'Tom', email: 'bossingtom@gmail.com', role: 'Supplier', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '5', name: 'Manang Rina', firstName: 'Rina', middleName: 'Five', lastName: '', username: 'Rina', email: 'manangrina@gmail.com', role: 'Farmer', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '1', name: 'Juan Dela Cruz', firstName: 'Juan', middleName: 'One', lastName: 'Dela Cruz', username: 'Juan', email: 'juandelacruz@gmail.com', role: 'Farmer', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '2', name: 'Sandra Xu Yen', firstName: 'Sandra', middleName: 'Two', lastName: 'Xu Yen', username: 'Sandra', email: 'sandraxuyen@gmail.com', role: 'Merchant', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '3', name: 'Ate Gina', firstName: 'Gina', middleName: 'Three', lastName: '', username: 'Gina', email: 'ategina@gmail.com', role: 'Vendor', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '4', name: 'Bossing Tom', firstName: 'Tom', middleName: 'Four', lastName: '', username: 'Tom', email: 'bossingtom@gmail.com', role: 'Supplier', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
+  { id: '5', name: 'Manang Rina', firstName: 'Rina', middleName: 'Five', lastName: '', username: 'Rina', email: 'manangrina@gmail.com', role: 'Farmer', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
 ];
 
 type Applicant = {
@@ -22,6 +22,8 @@ type Applicant = {
   username: string;
   email: string;
   role: string;
+  productsOffered: string;
+  modeOfDelivery: string;
   idFrontImage: any;
   idBackImage: any;
 };
@@ -118,6 +120,16 @@ export default function VerificationPage() {
               <TextInput style={styles.detailInput} value={`Username: ${selectedApplicant?.username || ''}`} editable={false} />
               <TextInput style={styles.detailInput} value={`Email: ${selectedApplicant?.email || ''}`} editable={false} />
               <TextInput style={styles.detailInput} value={`Role: ${selectedApplicant?.role || ''}`} editable={false} />
+              <TextInput
+                style={styles.detailInput}
+                value={`Products Offered: ${selectedApplicant?.productsOffered || 'Not specified'}`}
+                editable={false}
+              />
+              <TextInput
+                style={styles.detailInput}
+                value={`Mode of Delivery: ${selectedApplicant?.modeOfDelivery || 'Not specified'}`}
+                editable={false}
+              />
 
               {/* ID Picture Front */}
               {selectedApplicant?.idFrontImage && (
