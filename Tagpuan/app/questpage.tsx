@@ -172,15 +172,11 @@ export default function QuestsPage() {
   }, []);
 
   if (loading) {
-    return (
-      <LinearGradient style={styles.container} colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']}>
+      return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#DDB771" />
-          <Text style={styles.loadingText}>Loading quests...</Text>
         </View>
-        <StatusBar style="auto" />
-      </LinearGradient>
-    );
+      );
   }
 
   const createBid = async () => {
@@ -555,6 +551,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#073B3A',
   },
   loadingText: {
     marginTop: 16,

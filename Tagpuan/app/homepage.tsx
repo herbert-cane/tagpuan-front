@@ -57,10 +57,11 @@ export default function Homepage() {
   }
 
   const handleLogout = async () => {
+  setLoadingUser(true);
   try {
     await signOut(auth);
-    console.log("User successfully logged out");
-    router.push('/'); // or push('/login') depending on flow
+    setUserData(null);
+    router.push('/');
   } catch (error) {
     console.error("Logout failed:", error);
     Alert.alert("Logout Error", "Something went wrong during logout.");

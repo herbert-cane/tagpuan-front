@@ -50,6 +50,14 @@ const handleLogin = async () => {
   }
 };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
+  }
+
 
   return (
     <GradientBackground>
@@ -121,13 +129,8 @@ const handleLogin = async () => {
                   onPress={handleLogin}
                   disabled={loading}
                 >
-                  {loading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.loginText}>LOGIN</Text>
-                  )}
+                <Text style={styles.loginText}>LOGIN</Text>
                 </TouchableOpacity>
-
                 <Text style={styles.signupText}>Don't have an account?</Text>
                 <TouchableOpacity
                   onPress={() => !loading && router.push("/signuppage")}
@@ -236,8 +239,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#073B3A",
-  },
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
+  }
 });

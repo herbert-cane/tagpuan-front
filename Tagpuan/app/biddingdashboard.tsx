@@ -147,12 +147,9 @@ export default function BiddingDashboard() {
 
   if (loading) {
     return (
-      <LinearGradient colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']} style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#DDB771" />
-          <Text style={styles.loadingText}>Loading requests...</Text>
-        </View>
-      </LinearGradient>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
     );
   }
 
@@ -524,6 +521,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#073B3A',
   },
   loadingText: {
     marginTop: 16,
