@@ -279,6 +279,23 @@ const ProfilePage = () => {
               <Text style={styles.details}>Email: {userData?.email}</Text>
             </View>
 
+            {/* Address */}
+            <View style={styles.detailBox}>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={editedData.address}
+                  onChangeText={(text) => setEditedData({ ...editedData, address: text })}
+                  placeholder="Address"
+                  placeholderTextColor="#999"
+                />
+              ) : (
+                <Text style={styles.details}>
+                  Address: {userData?.address || "Not specified"}
+                </Text>
+              )}
+            </View>
+
             <View style={styles.detailBox}>
               {isEditing ? (
                 <TextInput
@@ -327,6 +344,23 @@ const ProfilePage = () => {
               ) : (
                 <Text style={styles.details}>
                   Mode of Delivery: {userData?.mode_of_delivery || "Not specified"}
+                </Text>
+              )}
+            </View>
+                        {/* Description */}
+            <View style={styles.detailBox}>
+              {isEditing ? (
+                <TextInput
+                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                  multiline
+                  value={editedData.description}
+                  onChangeText={(text) => setEditedData({ ...editedData, description: text })}
+                  placeholder="Short description about you"
+                  placeholderTextColor="#999"
+                />
+              ) : (
+                <Text style={styles.details}>
+                  Description: {userData?.description || "No description provided."}
                 </Text>
               )}
             </View>
