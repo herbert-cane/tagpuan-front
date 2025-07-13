@@ -125,7 +125,17 @@ export default function Dashboard() {
         <Text style={styles.sectionTitle}>My Bids</Text>
         <View style={styles.listingContainer}>
           {myBids.length === 0 ? (
-            <Text style={{ color: '#fff', fontStyle: 'italic' }}>You have no accepted or rejected bids yet.</Text>
+            <>
+              {/* <Text style={{ color: '#fff', fontStyle: 'italic', marginBottom: 12 }}>
+                No accepted or rejected bids yet. Showing sample data:
+              </Text> */}
+              <View style={styles.listItem}>
+                <Text style={styles.listText}>✅ Accepted – Corn</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Text style={styles.listText}>❌ Rejected – Tomato</Text>
+              </View>
+            </>
           ) : (
             myBids.map((bid, idx) => (
               <View key={idx} style={styles.listItem}>
@@ -138,7 +148,7 @@ export default function Dashboard() {
         </View>
 
         {/* 
-        // ⛔ Commented out original Listings section
+        // Listings section
         <Text style={styles.sectionTitle}>Listing</Text>
         <View style={styles.listingContainer}>
           {listings.map((item) => (
