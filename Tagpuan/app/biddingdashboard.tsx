@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { auth, db } from '@/firebaseConfig';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { Buffer } from 'buffer';
 import theme from '../constants/theme';
 
 export default function BiddingDashboard() {
@@ -106,6 +106,7 @@ export default function BiddingDashboard() {
           }
         })
       );
+
       setRequests(requestsWithBids);
       setLoading(false);
     } catch (error) {
@@ -152,6 +153,33 @@ export default function BiddingDashboard() {
       </View>
     );
   }
+  
+  const createConversation = async (userId: string, name: string, image: string) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const base64Image = Buffer.from(image).toString("base64");
+
+      const response = await fetch(`${FIREBASE_API}/conversation/create/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+      const result = await response.json();
+
+      router.push(
+          `/messagepage?conversationId=${result.id}&name=${name}&image=${base64Image}`
+        )
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  }
+  
 
   return (
     <LinearGradient colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']} style={styles.container}>
@@ -292,11 +320,16 @@ export default function BiddingDashboard() {
 
                           <TouchableOpacity
                             style={styles.messageBtn}
-                            onPress={() =>
-                              router.push({
-                                pathname: '/messagepage',
-                                // params: { recipientId: bidder.id }, // update based 
-                              })
+                            onPress={() => {
+                              const winner = selectedRequest.bidders.find(
+                                (bidder: any) => bidder.farmer_id === selectedRequest.winning_bid.farmer_id
+                              );
+
+                              createConversation(
+                                selectedRequest.winning_bid.farmer_id, 
+                                winner.name, 
+                                winner.user.profile_picture)
+                            }
                             }
                           >
                             <Ionicons name="chatbox-ellipses-outline" size={20} color="#fff" />
@@ -334,12 +367,10 @@ export default function BiddingDashboard() {
 
                           <TouchableOpacity
                             style={styles.messageBtn}
-                            onPress={() =>
-                              router.push({
-                                pathname: '/messagepage',
-                                params: { recipientId: bidder.id }, // update based on your routing
-                              })
-                            }
+                            onPress={() => createConversation(
+                              bidder.farmer_id, 
+                              bidder.name,
+                              bidder.user.profile_picture)}
                           >
                             <Ionicons name="chatbox-ellipses-outline" size={20} color="#fff" />
                           </TouchableOpacity>

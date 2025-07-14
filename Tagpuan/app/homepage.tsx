@@ -6,9 +6,10 @@ import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import { useEffect, useState } from 'react';
 import { auth, db } from '../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { ActivityIndicator } from 'react-native';
 import { signOut } from 'firebase/auth';
+import { onAuthStateChanged } from "firebase/auth";
 
 const recentExports = [
   { id: '1', description: 'Contracted a deal with Juan Dela Cruz', date: '6 days ago' },
@@ -18,55 +19,93 @@ const recentExports = [
 ];
 
 export default function Homepage() {
+
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL
   const [showMore, setShowMore] = useState(false);
 
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const token = await user.getIdToken();
 
-      try {
-        const userRef = doc(db, 'users', currentUser.uid);
-        const userSnap = await getDoc(userRef);
+          const response = await fetch(`${FIREBASE_API}/user/getDetails`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-        if (userSnap.exists()) {
-          setUserData(userSnap.data());
-        } else {
-          console.warn('No user document found for UID:', currentUser.uid);
+          if (!response.ok) throw new Error('Failed to fetch user details');
+
+          const userData = await response.json();
+          setUserData(userData);
+          setLoadingUser(false);
+
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+          setTimeout(() => setLoadingUser(false), 500);
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
-        console.log('User data fetched:', userData);
-        setLoadingUser(false);
+      } else {
+        console.warn("No auth user");
+        router.replace("/");
+        setTimeout(() => setLoadingUser(false), 500);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+
+  const handleLogout = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    setLoadingUser(true);
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        isOnline: false,
+        lastSeen: new Date().toISOString(),
+      }, { merge: true });
+
+      await signOut(auth);
+      setUserData(null);
+      router.push('/');
+    } catch (error) {
+      console.error("Logout failed:", error);
+      Alert.alert("Logout Error", "Something went wrong during logout.");
+    }
+  };
+
+  useEffect(() => {
+    const setOnline = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        await setDoc(doc(db, "users", user.uid), {
+          isOnline: true,
+          lastSeen: new Date().toISOString(),
+        }, { merge: true });
       }
     };
 
-    fetchUserData();
+    setOnline();
+
+    const interval = setInterval(setOnline, 60_000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  if (loadingUser) {
+  if (loadingUser || !userData) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#DDB771" />
       </View>
     );
   }
-
-  const handleLogout = async () => {
-  setLoadingUser(true);
-  try {
-    await signOut(auth);
-    setUserData(null);
-    router.push('/');
-  } catch (error) {
-    console.error("Logout failed:", error);
-    Alert.alert("Logout Error", "Something went wrong during logout.");
-  }
-};
 
   return (
     <LinearGradient
@@ -101,46 +140,63 @@ export default function Homepage() {
 
       {/* Navigation Icons */}
       <View style={styles.navContainer}>
-        {userData?.role.trim().toLowerCase() === "contractor" ? (
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
-            <FontAwesome name="search" size={28} color="#FFFFFF" />
-            <Text style={styles.navText}>FINDER</Text>
-          </TouchableOpacity>
-        ) : userData?.role.trim().toLowerCase() === "farmer" ? (
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
-            <FontAwesome name="gavel" size={28} color="#FFFFFF" />
-            <Text style={styles.navText}>BID</Text>
-          </TouchableOpacity>
-        ) : userData?.role.trim().toLowerCase() === "admin" ? (
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
-            <FontAwesome name="certificate" size={28} color="#FFFFFF" />
-            <Text style={styles.navText}>VERIFY</Text>
-          </TouchableOpacity>
-        ) : userData?.role.trim().toLowerCase() === "vendor" ? (
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/itemselling')}>
-            <FontAwesome name="shopping-cart" size={28} color="#FFFFFF" />
-            <Text style={styles.navText}>SELL</Text>
-          </TouchableOpacity>
-        ): null}
+      {(() => {
+        const role = (userData?.role || "").trim().toLowerCase();
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
-          <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
-          <Text style={styles.navText}>DASHBOARD</Text>
-        </TouchableOpacity>
+        switch (role) {
+          case "contractor":
+            return (
+              <>
+                <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
+                  <FontAwesome name="search" size={28} color="#FFFFFF" />
+                  <Text style={styles.navText}>FINDER</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
+                  <FontAwesome name="file-text" size={28} color="#FFFFFF" />
+                  <Text style={styles.navText}>REQUEST</Text>
+                </TouchableOpacity>
+              </>
+            );
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
-          <FontAwesome name="comments" size={28} color="#FFFFFF" />
-          <Text style={styles.navText}>MESSAGE</Text>
-        </TouchableOpacity>
-        
-        {userData?.role.trim().toLowerCase() === "contractor" ? (
-          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
-            <FontAwesome name="file-text" size={28} color="#FFFFFF" />
-            <Text style={styles.navText}>REQUEST</Text>
-          </TouchableOpacity>
-        ): null }
+          case "farmer":
+            return (
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
+                <FontAwesome name="gavel" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>BID</Text>
+              </TouchableOpacity>
+            );
 
-      </View>
+          case "admin":
+            return (
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
+                <FontAwesome name="certificate" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>VERIFY</Text>
+              </TouchableOpacity>
+            );
+
+          case "vendor":
+            return (
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/itemselling')}>
+                <FontAwesome name="shopping-cart" size={28} color="#FFFFFF" />
+                <Text style={styles.navText}>SELL</Text>
+              </TouchableOpacity>
+            );
+
+          default:
+            return null;
+        }
+      })()}
+
+      <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
+        <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
+        <Text style={styles.navText}>DASHBOARD</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
+        <FontAwesome name="comments" size={28} color="#FFFFFF" />
+        <Text style={styles.navText}>MESSAGE</Text>
+      </TouchableOpacity>
+    </View>
 
       {/* Hidden Buttons & See More Button Together */}
       <View>
@@ -151,22 +207,32 @@ export default function Homepage() {
               <Text style={styles.navText}>MARKET</Text>
             </TouchableOpacity>
 
-            {userData?.role.trim().toLowerCase() === "farmer" ? (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}>
-                <FontAwesome name="user" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>PROFILE</Text>
-              </TouchableOpacity>
-            ) : userData?.role.trim().toLowerCase() === "vendor" ? (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}>
-                <FontAwesome name="user" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>PROFILE</Text>
-              </TouchableOpacity>
-            ) : userData?.role.trim().toLowerCase() === "contractor" ? (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/biddingdashboard')}>
-                <FontAwesome name="file" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>CONTRACTS</Text>
-              </TouchableOpacity>
-            ) : null}
+            {(() => {
+              const role = (userData?.role || "").trim().toLowerCase();
+
+              if (role === "farmer" || role === "vendor") {
+                return (
+                  <TouchableOpacity
+                    style={styles.navItem}
+                    onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}
+                  >
+                    <FontAwesome name="user" size={28} color="#FFFFFF" />
+                    <Text style={styles.navText}>PROFILE</Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              if (role === "contractor") {
+                return (
+                  <TouchableOpacity style={styles.navItem} onPress={() => router.push('/biddingdashboard')}>
+                    <FontAwesome name="file" size={28} color="#FFFFFF" />
+                    <Text style={styles.navText}>CONTRACTS</Text>
+                  </TouchableOpacity>
+                );
+              }
+
+              return null;
+            })()}
           </View>
         )}
 

@@ -156,7 +156,6 @@ const createRequest = () => {
     logistics: selectedValues.Logistics,
     contractor_id: auth.currentUser?.uid,
   };
-  console.log('Request Data:', requestData);
 
   (async () => {
     try {

@@ -179,7 +179,7 @@ const ProfilePage = () => {
           <View style={styles.verifiedRow}>
             <Image
               source={
-                userData?.isVerified
+                userData?.verification === "Approved"
                   ? require("../assets/images/verified.png")
                   : require("../assets/images/error.png")
               }
@@ -187,7 +187,7 @@ const ProfilePage = () => {
             />
             <Text style={styles.verifiedText}>
               {" "}
-              {userData?.isVerified ? "Verified" : "Not Verified"}
+              {userData?.verification === "Approved" ? "Verified" : "Not Verified"}
             </Text>
           </View>
         </View>
@@ -311,7 +311,8 @@ const ProfilePage = () => {
             </View>
 
             {/* Products Offered */}
-            <View style={styles.detailBox}>
+            {userData?.role === "Farmer" &&
+            (<View style={styles.detailBox}>
               {isEditing ? (
                 <TextInput
                   style={styles.input}
@@ -327,10 +328,11 @@ const ProfilePage = () => {
                   Products Offered: {userData?.products_offered || "Not specified"}
                 </Text>
               )}
-            </View>
+            </View>)}
 
             {/* Mode of Delivery */}
-            <View style={styles.detailBox}>
+            {userData?.role === "Farmer" && 
+            (<View style={styles.detailBox}>
               {isEditing ? (
                 <TextInput
                   style={styles.input}
@@ -346,9 +348,11 @@ const ProfilePage = () => {
                   Mode of Delivery: {userData?.mode_of_delivery || "Not specified"}
                 </Text>
               )}
-            </View>
-                        {/* Description */}
-            <View style={styles.detailBox}>
+            </View>)}
+
+            {/* Description */}
+            {userData?.role === "Farmer" && 
+            (<View style={styles.detailBox}>
               {isEditing ? (
                 <TextInput
                   style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
@@ -363,8 +367,9 @@ const ProfilePage = () => {
                   Description: {userData?.description || "No description provided."}
                 </Text>
               )}
-            </View>
+            </View>)}
 
+            {userData?.role === "Farmer" && (
             <View style={styles.detailBox}>
               <Text style={styles.details}>Certifications:</Text>
 
@@ -383,7 +388,7 @@ const ProfilePage = () => {
                   <Text style={styles.uploadText}>Upload Certification</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </View>)}
           </>
         ) : (
           <>

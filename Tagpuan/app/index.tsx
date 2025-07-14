@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import GradientBackground from "../components/GradientBackground";
 import theme from "../constants/theme";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebaseConfig"; 
 
 import {
@@ -34,29 +34,25 @@ const handleLogin = async () => {
     return;
   }
 
+  setLoading(true);
+
   try {
-    setLoading(true);
+    await signInWithEmailAndPassword(auth, username, password);
 
-    const userCredential = await signInWithEmailAndPassword(auth, username, password);
-    const user = userCredential.user;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        unsubscribe();
+        Alert.alert("Welcome", `Logged in as ${username}`);
+        router.replace("/homepage");
+      }
+    });
 
-    console.log("Logged in user:", user);
-    Alert.alert("Success", `Welcome, ${user.displayName || user.email}!`);
-    router.push("/homepage");
   } catch (error) {
     Alert.alert("Login Failed", "Invalid email or password.");
   } finally {
-    setLoading(false);
+    
   }
 };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#DDB771" />
-      </View>
-    );
-  }
 
 
   return (

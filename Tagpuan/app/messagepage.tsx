@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   FlatList, Text, View, Image, TouchableOpacity, TextInput,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator
@@ -9,6 +9,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import theme from '../constants/theme';
+import { Buffer } from 'buffer';
+import { auth, db } from '@/firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
 
 interface Message {
   id: string;
@@ -17,28 +20,84 @@ interface Message {
 }
 
 export default function MessagePage() {
-  const { name } = useLocalSearchParams();
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', text: 'Hi there!', isSender: false },
-    { id: '2', text: 'Hello!', isSender: true },
-  ]);
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
+  const [userData, setUserData] = useState<Record<string, any> | null>(null);
+  const { name, image, conversationId } = useLocalSearchParams();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList<any>>(null);
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+      const uid = userId || auth.currentUser?.uid;
+      if (!uid) {
+        setLoading(false);
+        return;
+      }
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputMessage,
-      isSender: true,
+      try {
+        const userRef = doc(db, "users", uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          setUserData(data);
+        } else {
+          console.warn("No user document found for UID:", uid);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setMessages((prev) => [...prev, newMessage]);
-    setInputMessage('');
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-  };
+    fetchUserData();
+  }, []);
+
+  const decodedImage = typeof image === 'string'
+    ? Buffer.from(image, 'base64').toString('utf-8')
+    : '';
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let intervalId: NodeJS.Timeout;
+
+    const fetchConversationDetails = async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const response = await fetch(`${FIREBASE_API}/conversation/get/${conversationId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) throw new Error('Failed to fetch conversation');
+        const data = await response.json();
+        if (Array.isArray(data.messages)) {
+          const formattedMessages = data.messages.map((msg: any, idx: number) => ({
+            id: msg.timestamp?.toString() || idx.toString(),
+            text: msg.content,
+            isSender: msg.sender_id === auth.currentUser?.uid,
+          }));
+          setMessages(formattedMessages);
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+        }
+      } catch (error) {
+        console.error('Error fetching conversation:', error);
+      }
+    };
+
+    fetchConversationDetails();
+    intervalId = setInterval(fetchConversationDetails, 500);
+
+    return () => clearInterval(intervalId);
+  }, [conversationId]);
 
   const handleAttachment = async () => {
     try {
@@ -59,6 +118,42 @@ export default function MessagePage() {
     );
   }
 
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return;
+    console.log("Sending message:", inputMessage);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      console.log("Token:", token);
+      const response = await fetch(`${FIREBASE_API}/conversation/send/${conversationId}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: inputMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const result = await response.json();
+      const newMessage: Message = {
+        id: result.id || Date.now().toString(),
+        text: inputMessage,
+        isSender: true,
+      };
+
+      setMessages((prev) => [...prev, newMessage]);
+      setInputMessage('');
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  }
+
   return (
     <LinearGradient
       style={styles.container}
@@ -71,7 +166,7 @@ export default function MessagePage() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>MESSAGE</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/messagelistpage')}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>
@@ -79,7 +174,10 @@ export default function MessagePage() {
       {/* Profile Section */}
       <View style={styles.profileSection}>
         <Image
-          source={require("../assets/images/react-logo.png")}
+          source={decodedImage
+              ? { uri: decodedImage }
+              : require("../assets/images/react-logo.png")
+          }
           style={styles.profilePic}
         />
         <Text style={styles.profileName}>{name}</Text>
@@ -90,24 +188,23 @@ export default function MessagePage() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) =>
+            `${item.timestamp?.toString?.() ?? 'no-time'}_${index}`
+          }
           renderItem={({ item }) => (
             <View style={[styles.messageContainer, item.isSender ? styles.sentMessage : styles.receivedMessage]}>
               {!item.isSender && (
                 <Image
-                  source={require("../assets/images/react-logo.png")}
+                  source={decodedImage
+                      ? { uri: decodedImage }
+                      : require("../assets/images/react-logo.png")
+                  }
                   style={styles.messageProfilePic}
-                />
+                />               
               )}
               <View style={[styles.messageBubble, item.isSender ? styles.sentBubble : styles.receivedBubble]}>
                 <Text style={styles.messageText}>{item.text}</Text>
               </View>
-              {item.isSender && (
-                <Image
-                  source={require("../assets/images/react-logo.png")}
-                  style={styles.messageProfilePic}
-                />
-              )}
             </View>
           )}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
@@ -133,7 +230,7 @@ export default function MessagePage() {
           onChangeText={setInputMessage}
         />
 
-        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
