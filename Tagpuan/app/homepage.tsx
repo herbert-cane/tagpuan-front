@@ -93,10 +93,6 @@ export default function Homepage() {
     };
 
     setOnline();
-
-    const interval = setInterval(setOnline, 60_000);
-
-    return () => clearInterval(interval);
   }, []);
 
   if (loadingUser || !userData) {

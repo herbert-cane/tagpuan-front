@@ -553,11 +553,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#073B3A',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: '#DDB771',
-    fontSize: 18,
-    fontFamily: theme.fonts.regular,
-  },
+  }
 });

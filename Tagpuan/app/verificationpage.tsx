@@ -1,31 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, FlatList, TextInput, Image, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, FlatList, TextInput, Image, ScrollView, Modal, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
-
-const applicants = [
-  { id: '1', name: 'Juan Dela Cruz', firstName: 'Juan', middleName: 'One', lastName: 'Dela Cruz', username: 'Juan', email: 'juandelacruz@gmail.com', address: 'Brgy. Mabunga, Iloilo', role: 'Farmer', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '2', name: 'Sandra Xu Yen', firstName: 'Sandra', middleName: 'Two', lastName: 'Xu Yen', username: 'Sandra', email: 'sandraxuyen@gmail.com', address: 'Brgy. Mabunga, Iloilo', role: 'Merchant', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '3', name: 'Ate Gina', firstName: 'Gina', middleName: 'Three', lastName: '', username: 'Gina', email: 'ategina@gmail.com', address: 'Brgy. Mabunga, Iloilo', role: 'Vendor', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '4', name: 'Bossing Tom', firstName: 'Tom', middleName: 'Four', lastName: '', username: 'Tom', email: 'bossingtom@gmail.com', address: 'Brgy. Mabunga, Iloilo', role: 'Supplier', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-  { id: '5', name: 'Manang Rina', firstName: 'Rina', middleName: 'Five', lastName: '', username: 'Rina', email: 'manangrina@gmail.com', address: 'Brgy. Mabunga, Iloilo', role: 'Farmer', productsOffered: 'Rice, Corn', modeOfDelivery: 'Pickup', idFrontImage: require('../assets/images/main-image.png'), idBackImage: require('../assets/images/main-image.png') },
-];
+import { auth } from '@/firebaseConfig';
 
 type Applicant = {
   id: string;
   name: string;
-  firstName: string;
-  middleName: string;
-  lastName: string;
+  first_name: string;
+  middle_name: string;
+  last_name: string;
   username: string;
   email: string;
   role: string;
-  productsOffered: string;
-  modeOfDelivery: string;
-  idFrontImage: any;
-  idBackImage: any;
+  address: string;
+  image: string;
+  frontIDUrl: any;
+  backIDUrl: any;
+  farmer_details?: {
+    commodity: { id: string; name: string }[],
+    modeOfDelivery: string;
+  };
 };
 
 type ApplicantCardProps = {
@@ -40,15 +37,111 @@ const ApplicantCard: React.FC<ApplicantCardProps> = ({ applicant, isSelected, on
     onPress={onPress}
   >
     <Text style={[styles.applicantName, isSelected && styles.selectedText]}>
-      {applicant.name}
+      {applicant.first_name} {applicant.last_name}
     </Text>
   </TouchableOpacity>
 );
 
 export default function VerificationPage() {
-  const [selectedApplicant, setSelectedApplicant] = useState(applicants[0]);
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
+
+  const [selectedApplicant, setSelectedApplicant] = useState(null as Applicant | null);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'account' | 'item'>('account');
+  const [applicantsList, setApplicantsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const deliveryModes = [
+    { id: 'pickup', name: 'Pickup' },
+    { id: 'delivery', name: 'Delivery' },
+  ];
+
+  useEffect(() => {
+    const fetchUnverified = async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        console.log(token)
+        const response = await fetch(`${FIREBASE_API}/user/unverified`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) throw new Error('Failed to fetch applicants');
+        const data = await response.json();
+        setApplicantsList(data);
+        setSelectedApplicant(data[0]);
+        setLoading(false);
+
+        console.log(selectedApplicant)
+
+      } catch (error) {
+        console.error('Error fetching applicants:', error);
+      }
+    };
+
+    fetchUnverified();
+  }, []);
+
+  if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#DDB771" />
+        </View>
+      );
+    }
+
+  async function handleAccept() {
+    if (!selectedApplicant) return;
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(`${FIREBASE_API}/user/verify/${selectedApplicant.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to verify user');
+      Alert.alert('Success', 'User has been verified successfully', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/verificationpage'),
+        },
+      ]);
+    } catch (error) {
+      console.error('Error verifying user:', error);
+      Alert.alert('Error', 'Failed to verify user');
+    }
+  }
+
+  async function handleReject() {
+    if (!selectedApplicant) return;
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(`${FIREBASE_API}/user/reject/${selectedApplicant.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to verify user');
+      Alert.alert('Success', 'User has been verified successfully', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/verificationpage'),
+        },
+      ]);
+    } catch (error) {
+      console.error('Error rejecting user verification:', error);
+      Alert.alert('Error', 'Failed to reject user');
+    }
+  }
 
   return (
     <LinearGradient
@@ -69,7 +162,7 @@ export default function VerificationPage() {
       <Text style={styles.sectionTitle}>Applicants</Text>
       <View style={styles.applicantContainer}>
         <FlatList
-          data={applicants}
+          data={applicantsList}
           keyExtractor={(item) => item.id}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -95,12 +188,13 @@ export default function VerificationPage() {
             <Text style={styles.tabText}>Account Verification</Text>
           </TouchableOpacity>
 
+          {selectedApplicant?.role === "Vendor" &&
           <TouchableOpacity
             style={[styles.tabButton, activeTab === 'item' && styles.activeTab]}
             onPress={() => setActiveTab('item')}
           >
             <Text style={styles.tabText}>Item Verification</Text>
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </View>
       </View>
 
@@ -114,9 +208,10 @@ export default function VerificationPage() {
           <>
             <Text style={styles.sectionTitle}>Applicant Details</Text>
             <View style={styles.detailsContainer}>
-              <TextInput style={styles.detailInput} value={`First Name: ${selectedApplicant?.firstName || ''}`} editable={false} />
-              <TextInput style={styles.detailInput} value={`Middle Name: ${selectedApplicant?.middleName || ''}`} editable={false} />
-              <TextInput style={styles.detailInput} value={`Last Name: ${selectedApplicant?.lastName || ''}`} editable={false} />
+              <TextInput style={styles.detailInput} value={`First Name: ${selectedApplicant?.first_name || ''}`} editable={false} />
+              {selectedApplicant?.middle_name &&
+              <TextInput style={styles.detailInput} value={`Middle Name: ${selectedApplicant?.middle_name}`} editable={false} />}
+              <TextInput style={styles.detailInput} value={`Last Name: ${selectedApplicant?.last_name || ''}`} editable={false} />
               <TextInput style={styles.detailInput} value={`Username: ${selectedApplicant?.username || ''}`} editable={false} />
               <TextInput style={styles.detailInput} value={`Email: ${selectedApplicant?.email || ''}`} editable={false} />
               <TextInput
@@ -124,47 +219,53 @@ export default function VerificationPage() {
                 value={`Address: ${selectedApplicant?.address || 'Not specified'}`}
                 editable={false}
               />
-              <TextInput style={styles.detailInput} value={`Role: ${selectedApplicant?.role || ''}`} editable={false} />
-              <TextInput
-                style={styles.detailInput}
-                value={`Products Offered: ${selectedApplicant?.productsOffered || 'Not specified'}`}
-                editable={false}
-              />
-              <TextInput
-                style={styles.detailInput}
-                value={`Mode of Delivery: ${selectedApplicant?.modeOfDelivery || 'Not specified'}`}
-                editable={false}
-              />
-
+              {selectedApplicant?.role === "Farmer" && (
+                <>
+                  <TextInput
+                    style={styles.detailInput}
+                    value={
+                      Array.isArray(selectedApplicant?.farmer_details?.modeOfDelivery) && selectedApplicant.farmer_details.modeOfDelivery.length > 0
+                        ? `Mode of Delivery: ${selectedApplicant.farmer_details.modeOfDelivery
+                            .map(id => {
+                              const match = deliveryModes.find(mode => mode.id === id);
+                              return match ? match.name : id;
+                            })
+                            .join(', ')}`
+                        : 'Mode of Delivery: Not specified'
+                    }
+                    editable={false}
+                  />
+                </>
+              )}
               {/* ID Picture Front */}
-              {selectedApplicant?.idFrontImage && (
+              {selectedApplicant?.backIDUrl && (
                 <>
                   <TouchableOpacity onPress={() => setModalVisible(true)}>
-                    <Image source={selectedApplicant.idFrontImage} style={styles.idFrontImage} />
+                    <Image source={{uri: selectedApplicant.frontIDUrl}} style={styles.idFrontImage} />
                   </TouchableOpacity>
                   <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
                     <View style={styles.modalContainer}>
                       <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
                         <Text style={styles.closeButtonText}>✕</Text>
                       </TouchableOpacity>
-                      <Image source={selectedApplicant.idFrontImage} style={styles.expandedImage} resizeMode="contain" />
+                      <Image source={{uri: selectedApplicant.frontIDUrl}} style={styles.expandedImage} resizeMode="contain" />
                     </View>
                   </Modal>
                 </>
               )}
 
               {/* ID Picture Back */}
-              {selectedApplicant?.idBackImage && (
+              {selectedApplicant?.backIDUrl && (
                 <>
                   <TouchableOpacity onPress={() => setModalVisible(true)}>
-                    <Image source={selectedApplicant.idBackImage} style={styles.idBackImage} />
+                    <Image source={{uri: selectedApplicant.backIDUrl}} style={styles.idBackImage} />
                   </TouchableOpacity>
                   <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
                     <View style={styles.modalContainer}>
                       <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
                         <Text style={styles.closeButtonText}>✕</Text>
                       </TouchableOpacity>
-                      <Image source={selectedApplicant.idBackImage} style={styles.expandedImage} resizeMode="contain" />
+                      <Image source={{uri: selectedApplicant.backIDUrl}} style={styles.expandedImage} resizeMode="contain" />
                     </View>
                   </Modal>
                 </>
@@ -173,10 +274,10 @@ export default function VerificationPage() {
 
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.rejectButton} onPress={() => console.log('Rejected')}>
+              <TouchableOpacity style={styles.rejectButton} onPress={handleReject}>
                 <Text style={styles.buttonText}>REJECT</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.acceptButton} onPress={() => console.log('Accepted')}>
+              <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
                 <Text style={styles.buttonText}>ACCEPT</Text>
               </TouchableOpacity>
             </View>
@@ -301,7 +402,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   idFrontImage: {
-    maxWidth: '99%',
+    width: '100%',
     height: 100,
     borderRadius: 8,
     alignSelf: 'center',
@@ -310,7 +411,7 @@ const styles = StyleSheet.create({
     borderColor: '#DDB771',
   },
   idBackImage: {
-    maxWidth: '99%',
+    width: '100%',
     height: 100,
     borderRadius: 8,
     alignSelf: 'center',
@@ -415,4 +516,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 10,
   },
+    loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#073B3A',
+  }
 });
