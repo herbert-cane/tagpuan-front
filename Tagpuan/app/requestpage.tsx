@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Scroll
 import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { collection, onSnapshot } from "firebase/firestore";
 import { storage, auth, db } from "../firebaseConfig";
 import { Platform } from 'react-native';
@@ -35,6 +35,7 @@ const MakeRequestScreen: React.FC = () => {
   const [commodities, setCommodities] = useState<Array<{ id: string; [key: string]: any }>>([]);
   const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const { type, farmerId } = useLocalSearchParams();
   
   const paymentList = [
     { id: 'cod', name: 'Cash On Delivery' },
@@ -114,7 +115,7 @@ const createRequest = () => {
   if (!amount) newErrors.amount = true;
   if (!amountUnit) newErrors.amountUnit = true;
   if (!price) newErrors.price = true;
-  if (!deliveryPlace) newErrors.deliveryPlace = true;
+  if (!deliveryPlace || deliveryPlace.length <= 3 || deliveryPlace.length > 100) newErrors.deliveryPlace = true;
   
   if (isCustomCommodity && !customCommodity) newErrors.customCommodity = true;
   if (!selectedValues.ContractDuration) newErrors.ContractDuration = true;
@@ -160,13 +161,27 @@ const createRequest = () => {
   (async () => {
     try {
       const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${FIREBASE_API}/request/create`, {
+      let endpoint = '';
+      let body = requestData;
+
+      if (type === 'bidding') {
+        endpoint = `${FIREBASE_API}/request/create`;
+      } else if (type === 'direct') {
+        
+        endpoint = `${FIREBASE_API}/request/direct/${farmerId}`;
+      } else {
+        alert("Invalid request type.");
+        return;
+      }
+      console.log('Endpoint:', endpoint);
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(body)
       });
 
       const responseBody = await response.text();
@@ -316,7 +331,7 @@ const createRequest = () => {
             />
           </View>
           {errors.deliveryPlace && (
-            <Text style={styles.errorText}>Delivery address is required.</Text>
+            <Text style={styles.errorText}>Delivery address is required. It must also be at least 3 characters long.</Text>
           )}
 
             {/* Schedule Date Picker */}

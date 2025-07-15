@@ -333,7 +333,7 @@ const SwipeCard: React.FC = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push('/requestpage')}
+            onPress={() => router.push({ pathname: '/requestpage', params: { type: 'direct', farmerId: profile.id } })}
           >
             <Image
               source={require('../assets/images/Vector.png')}

@@ -148,7 +148,7 @@ export default function Homepage() {
                   <FontAwesome name="search" size={28} color="#FFFFFF" />
                   <Text style={styles.navText}>FINDER</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem} onPress={() => router.push('/requestpage')}>
+                <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/requestpage', params: { type: 'bidding' } })}>
                   <FontAwesome name="file-text" size={28} color="#FFFFFF" />
                   <Text style={styles.navText}>REQUEST</Text>
                 </TouchableOpacity>
