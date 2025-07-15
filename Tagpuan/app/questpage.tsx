@@ -20,12 +20,6 @@ export default function QuestsPage() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // Removed unused hasActiveBid state
-
-  const formatDate = (timestamp: number) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(timestamp).toLocaleDateString(undefined, options);
-  };
 
   const deliveryModes = [
     { id: 'pickup', name: 'Pickup' },
@@ -39,18 +33,23 @@ export default function QuestsPage() {
     { id: 'bank', name: 'Bank Transfer' },
   ];
 
+  const formatDate = (timestamp: number) => {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(timestamp).toLocaleDateString(undefined, options);
+  };
+
   const mapQuestFields = (quest: any, contractorName: string) => {
     return {
       contractId: quest.id,
       contractor: contractorName,
       contractorProfilePic: quest.contractorDetails?.profile_picture || null,
       commodity: quest.commodity.name,
-      quantity: quest.quantity + " " + quest.unit,
-      price: "₱" + quest.price + "/" + quest.unit,
+      quantity: quest.quantity + ' ' + quest.unit,
+      price: '₱' + quest.price + '/' + quest.unit,
       schedule:
-        quest.schedule && typeof quest.schedule === "object" && "_seconds" in quest.schedule
+        quest.schedule && typeof quest.schedule === 'object' && '_seconds' in quest.schedule
           ? `On or before ${formatDate(quest.schedule._seconds * 1000)}`
-          : "Unknown",
+          : 'Unknown',
       address: quest.address,
       duration: quest.duration,
       modeOfPayment: (() => {
@@ -64,23 +63,38 @@ export default function QuestsPage() {
       hasActiveBid: quest.hasActiveBid,
       bidStatus: quest.bidStatus || null,
       bidId: quest.bidId || null,
+      status: quest.status,
     };
   };
 
-  const applyFilters = (filters: {
-    commodity?: string;
-    payment_terms?: string;
-    logistics?: string;
-    duration?: string;
+  const applyFilters = (rawFilters: {
+    commodity?: string[];
+    payment_terms?: string[];
+    logistics?: string[];
+    duration?: string[];
   }) => {
     setFilterVisible(false);
 
+    const filters = {
+      commodity: rawFilters.commodity?.length ? rawFilters.commodity : undefined,
+      payment_terms: rawFilters.payment_terms?.length ? rawFilters.payment_terms : undefined,
+      logistics: rawFilters.logistics?.length ? rawFilters.logistics : undefined,
+      duration: rawFilters.duration?.length ? rawFilters.duration : undefined,
+    };
+
+    const hasNoFilters = !filters.commodity && !filters.payment_terms && !filters.logistics && !filters.duration;
+
+    if (hasNoFilters) {
+      setFilteredQuests(requests.map((quest: any) => mapQuestFields(quest, quest.contractorName)));
+      return;
+    }
+
     const filtered = requests.filter((quest) => {
       return (
-        (!filters.commodity || quest.commodity === filters.commodity) &&
-        (!filters.payment_terms || quest.payment_terms === filters.payment_terms) &&
-        (!filters.logistics || quest.logistics === filters.logistics) &&
-        (!filters.duration || quest.duration === filters.duration)
+        (!filters.commodity || filters.commodity.includes(quest.commodity.id)) &&
+        (!filters.payment_terms || filters.payment_terms.includes(quest.payment_terms)) &&
+        (!filters.logistics || filters.logistics.includes(quest.logistics)) &&
+        (!filters.duration || filters.duration.includes(quest.duration))
       );
     }).map((quest: any) => mapQuestFields(quest, quest.contractorName));
 
@@ -109,9 +123,7 @@ export default function QuestsPage() {
         throw new Error(`API error: ${response.status} - ${text}`);
       }
       const data = await response.json();
-      // const upForBidding = data.filter((req: any) => req.status === "Up for Bidding");
 
-      // Fetch contractor names and bid status for each quest
       const questsWithDetails = await Promise.all(
         data.map(async (quest: any) => {
           try {
@@ -140,15 +152,11 @@ export default function QuestsPage() {
             if (bidCheckRes.ok) {
               const bidCheckData = await bidCheckRes.json();
               hasActiveBid = !!bidCheckData.hasActiveBid.hasActiveBid;
-              // You can also get bid status if needed
               quest.bidStatus = bidCheckData.hasActiveBid.status ?? null;
               quest.bidId = bidCheckData.hasActiveBid.id ?? null;
             }
 
-            console.log(`Quest ID: ${quest.id}, Contractor: ${contractorName}, Has Active Bid: ${hasActiveBid}`);
-          
             return { ...quest, contractorName, contractorProfilePic, contractorDetails: contractorData, hasActiveBid, bidStatus: quest.bidStatus, bidId: quest.bidId };
-
           } catch (error) {
             console.error('Error fetching user details or bid status:', error);
             return { ...quest, contractorName: 'Unknown Contractor', contractorProfilePic: null, contractorDetails: {}, hasActiveBid: false };
@@ -172,125 +180,156 @@ export default function QuestsPage() {
   }, []);
 
   if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#DDB771" />
-        </View>
-      );
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
   }
 
   const createBid = async () => {
-      console.log('Creating bid for:', selectedQuest);
-      if (!selectedQuest) return;
-      try {
-        const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated');
-        const token = await user.getIdToken();
-        const response = await fetch(`${FIREBASE_API}/bid/create`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            request_id: selectedQuest.contractId,
-            farmer_id: user.uid,
-          }),
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          alert(`Error creating bid: ${text}`);
-          throw new Error(`API error: ${response.status} - ${text}`);
-        }
-        await fetchRequests();
-        alert('Bid created successfully!');
-        setConfirmVisible(false);
-        fetchRequests(); // Refresh the quest list
-      } catch (error) {
-        console.error('Error creating bid:', error);
+    if (!selectedQuest) return;
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+      const token = await user.getIdToken();
+      const response = await fetch(`${FIREBASE_API}/bid/create`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          request_id: selectedQuest.contractId,
+          farmer_id: user.uid,
+        }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        alert(`Error creating bid: ${text}`);
+        throw new Error(`API error: ${response.status} - ${text}`);
       }
-    };
+      await fetchRequests();
+      alert('Bid created successfully!');
+      setConfirmVisible(false);
+      fetchRequests();
+    } catch (error) {
+      console.error('Error creating bid:', error);
+    }
+  };
 
   const withdrawBid = async () => {
-      console.log('Withdrawing bid for:', selectedQuest);
-      if (!selectedQuest) return;
-      try {
-        const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated');
-        const token = await user.getIdToken();
-        const response = await fetch(`${FIREBASE_API}/bid/withdraw/${selectedQuest.bidId}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          alert(`Error withdrawing bid: ${text}`);
-          throw new Error(`API error: ${response.status} - ${text}`);
-        }
-        await fetchRequests();
-        alert('Bid withdrawn successfully!');
-        setConfirmVisible(false);
-      } catch (error) {
-        console.error('Error withdrawing bid:', error);
+    if (!selectedQuest) return;
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+      const token = await user.getIdToken();
+      const response = await fetch(`${FIREBASE_API}/bid/withdraw/${selectedQuest.bidId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        alert(`Error withdrawing bid: ${text}`);
+        throw new Error(`API error: ${response.status} - ${text}`);
       }
-  }
+      await fetchRequests();
+      alert('Bid withdrawn successfully!');
+      setConfirmVisible(false);
+    } catch (error) {
+      console.error('Error withdrawing bid:', error);
+    }
+  };
 
   const rebid = async () => {
-      console.log('Re-bidding for:', selectedQuest);
-      if (!selectedQuest) return;
-      try {
-        const user = auth.currentUser;
-        if (!user) throw new Error('User not authenticated');
-        const token = await user.getIdToken();
-        const response = await fetch(`${FIREBASE_API}/bid/rebid/${selectedQuest.bidId}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          alert(`Error withdrawing bid: ${text}`);
-          throw new Error(`API error: ${response.status} - ${text}`);
-        }
-        await fetchRequests();
-        alert('Successfully confirmed re-bidding!');
-        setConfirmVisible(false);
-      } catch (error) {
-        console.error('Error withdrawing bid:', error);
+    if (!selectedQuest) return;
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+      const token = await user.getIdToken();
+      const response = await fetch(`${FIREBASE_API}/bid/rebid/${selectedQuest.bidId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        alert(`Error withdrawing bid: ${text}`);
+        throw new Error(`API error: ${response.status} - ${text}`);
       }
-  }
+      await fetchRequests();
+      alert('Successfully confirmed re-bidding!');
+      setConfirmVisible(false);
+    } catch (error) {
+      console.error('Error withdrawing bid:', error);
+    }
+  };
 
-  // Array for text and button styles
   const bidButtonOptions = [
     {
-      condition: (isActive: boolean, status?: string) => !isActive,
+      condition: (isActive: boolean, status?: string, questStatus?: string) =>
+        !isActive && questStatus === 'Up for Bidding',
       text: 'Bid',
-      color: '#FFFFFF',
+      color: '#FFF',
       modalColor: '#08A045',
     },
     {
-      condition: (isActive: boolean, status?: string) => isActive && status === 'Pending',
+      condition: (isActive: boolean, status?: string, questStatus?: string) =>
+        isActive && status === 'Pending' && questStatus === 'Up for Bidding',
       text: 'Withdraw',
       color: '#D9534F',
       modalColor: '#D9534F',
     },
     {
-      condition: (isActive: boolean, status?: string) => isActive && status === 'Withdrawn',
+      condition: (isActive: boolean, status?: string, questStatus?: string) =>
+        isActive && status === 'Withdrawn' && questStatus === 'Up for Bidding',
       text: 'Re-bid',
-      color: '#FFFFFF',
+      color: '#FFF',
       modalColor: '#08A045',
     },
-        {
-      condition: (isActive: boolean, status?: string) => isActive && status === 'Won' || status === 'Lost',
+    {
+      condition: (isActive: boolean, status?: string, questStatus?: string) =>
+        isActive && (status === 'Won' || status === 'Lost' || status === 'Withdrawn') && questStatus !== 'Up for Bidding',
       text: 'View',
       color: '#FFE699',
-    }
+    },
   ];
+
+  if (!loading && filteredQuests.length === 0) {
+    return (
+      <LinearGradient
+        style={styles.container}
+        colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: 'white', fontSize: 18, fontStyle: 'italic' }}>
+            There are no quests that meet your conditions.
+          </Text>
+          <Text style={{ color: 'white', fontSize: 18, fontStyle: 'italic' }}>
+             Please check back again later or adjust your filters.
+          </Text>
+          <TouchableOpacity onPress={() => setFilterVisible(true)} style={{ marginTop: 10 }}>
+            <Text style={{ color: '#DDB771', textDecorationLine: 'underline' }}>
+              Adjust Filters
+            </Text>
+          </TouchableOpacity>
+        </View>
+  
+        <QuestFilter
+          visible={filterVisible}
+          onClose={() => setFilterVisible(false)}
+          onApply={applyFilters}
+        />
+      </LinearGradient>
+      );
+    }
 
   return (
     <LinearGradient style={styles.container} colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']}>
@@ -307,61 +346,71 @@ export default function QuestsPage() {
           <Text style={styles.filterText}>FILTER</Text>
         </TouchableOpacity>
 
-        {filteredQuests.map((quest, index) => (
-          <View key={index} style={styles.questCardWrapper}>
-            <TouchableOpacity style={styles.questCard} onPress={() => console.log('Quest Card Pressed')}>
-              <View style={styles.cardHeader}>
-          {quest.contractorProfilePic ? (
-            <Image
-              source={{ uri: quest.contractorProfilePic }}
-              style={{ width: 38, height: 38, borderRadius: 19 }}
-            />
-          ) : (
-            <Ionicons name="person-circle" size={38} color="#808080" />
-          )}
-            <View style={styles.questDetails}>
-            {Object.entries(quest).map(([key, value]) => {
-              if (
-                key === 'contractorProfilePic' ||
-                key === 'hasActiveBid' ||
-                key === 'contractId' ||
-                key === 'bidId' ||
-                key === 'bidStatus'             
-              )
-              return null;
-              return (
-              <View key={key} style={styles.row}>
-                <Text style={styles.label}>
-                {key === 'modeOfPayment'
-                  ? 'Mode of Payment:'
-                  : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
-                </Text>
-                <Text style={styles.value}>{String(value)}</Text>
-              </View>
-              );
-            })}
-            </View>
-              </View>
-            </TouchableOpacity>
-            {bidButtonOptions.map((option, idx) =>
-              option.condition(quest.hasActiveBid, quest.bidStatus) ? (
+        {filteredQuests.map((quest, index) => {
+          if (!quest.hasActiveBid && quest.status !== 'Up for Bidding') return null;
+          return (
+            <View key={quest.contractId ?? index} style={styles.questCardWrapper}>
               <TouchableOpacity
-                key={idx}
-                style={[
-                !quest.hasActiveBid ? styles.bidButton : styles.withdrawButton,
-                { backgroundColor: option.color }
-                ]}
+                style={styles.questCard}
                 onPress={() => {
-                setSelectedQuest(quest);
-                setConfirmVisible(true);
+                  setSelectedQuest(quest);
+                  setConfirmVisible(true);
                 }}
               >
-                <Text style={styles.bidButtonText}>{option.text}</Text>
+                <View style={styles.cardHeader}>
+                  {quest.contractorProfilePic ? (
+                    <Image
+                      source={{ uri: quest.contractorProfilePic }}
+                      style={{ width: 38, height: 38, borderRadius: 19 }}
+                    />
+                  ) : (
+                    <Ionicons name="person-circle" size={38} color="#808080" />
+                  )}
+                  <View style={styles.questDetails}>
+                    {Object.entries(quest).map(([key, value]) => {
+                      if (
+                        key === 'contractorProfilePic' ||
+                        key === 'hasActiveBid' ||
+                        key === 'contractId' ||
+                        key === 'bidId' ||
+                        key === 'bidStatus' ||
+                        key === 'status'
+                      )
+                        return null;
+                      return (
+                        <View key={key} style={styles.row}>
+                          <Text style={styles.label}>
+                            {key === 'modeOfPayment'
+                              ? 'Mode of Payment:'
+                              : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
+                          </Text>
+                          <Text style={styles.value}>{String(value)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
               </TouchableOpacity>
-              ) : null
-            )}
-          </View>
-        ))}
+              {bidButtonOptions.map((option, idx) =>
+                option.condition(quest.hasActiveBid, quest.bidStatus, quest.status) ? (
+                  <TouchableOpacity
+                    key={option.text + '-' + idx}
+                    style={[
+                      styles.bidButton,
+                      { backgroundColor: option.color },
+                    ]}
+                    onPress={() => {
+                      setSelectedQuest(quest);
+                      setConfirmVisible(true);
+                    }}
+                  >
+                    <Text style={styles.bidButtonText}>{option.text}</Text>
+                  </TouchableOpacity>
+                ) : null
+              )}
+            </View>
+          );
+        })}
       </ScrollView>
 
       <QuestFilter visible={filterVisible} onClose={() => setFilterVisible(false)} onApply={applyFilters} />
@@ -376,17 +425,13 @@ export default function QuestsPage() {
           <View style={styles.modalContent}>
             {selectedQuest && (
               <View style={{ marginBottom: 10 }}>
-                {selectedQuest.hasActiveBid ? 
-                selectedQuest.bidStatus === 'Pending' ?
-                (
-                  <Text style={styles.modalTitle}>Withdraw Bid</Text>
-                ) 
-                :
-                (
-                  <Text style={styles.modalTitle}>Re-bid</Text>
-                )     
-                : (
-                <Text style={styles.modalTitle}>Confirm Bid</Text>)}
+                {selectedQuest.status !== 'Up for Bidding' ? (
+                  <Text style={styles.modalTitle}>Bid Details</Text>
+                ) : selectedQuest.hasActiveBid
+                  ? selectedQuest.bidStatus === 'Pending'
+                    ? <Text style={styles.modalTitle}>Withdraw Bid</Text>
+                    : <Text style={styles.modalTitle}>Re-bid</Text>
+                  : <Text style={styles.modalTitle}>Confirm Bid</Text>}
 
                 {Object.entries(selectedQuest).map(([key, value]) => {
                   if (
@@ -394,75 +439,78 @@ export default function QuestsPage() {
                     key === 'hasActiveBid' ||
                     key === 'contractId' ||
                     key === 'bidId' ||
-                    key === 'bidStatus'  
+                    key === 'bidStatus' ||
+                    key === 'status'
                   )
-                  return null;
+                    return null;
                   return (
-                  <View key={key} style={styles.row}>
-                    <Text style={styles.modalDetail}>
-                    {key === 'modeOfPayment'
-                      ? 'Mode of Payment:'
-                      : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
-                    </Text>
-                    <Text style={styles.modalLabel}>{String(value)}</Text>
-                  </View>
+                    <View key={key} style={styles.row}>
+                      <Text style={styles.modalDetail}>
+                        {key === 'modeOfPayment'
+                          ? 'Mode of Payment:'
+                          : key.charAt(0).toUpperCase() + key.slice(1) + ':'}
+                      </Text>
+                      <Text style={styles.modalLabel}>{String(value)}</Text>
+                    </View>
                   );
                 })}
               </View>
             )}
 
             <View style={[styles.modalActions, { flexDirection: 'column', alignItems: 'stretch' }]}>
-              {selectedQuest && selectedQuest.hasActiveBid && (selectedQuest.bidStatus === 'Won' || selectedQuest.bidStatus == 'Lost') ? 
-              selectedQuest.bidStatus === 'Won' ?
-              (<Text style={styles.modalStatus}> You have won this bid. </Text>)
-              :
-              (<Text style={styles.modalStatus}> You have lost this bid. </Text>)
-              :
               <>
-              <Text
-              style={[
-              styles.modalDetail,
-              { textAlign: 'center' },
-              selectedQuest && selectedQuest.hasActiveBid && selectedQuest.bidStatus === 'Pending'
-                ? { color: '#D9534F' }
-                : {}
-              ]}
-            >
-              {selectedQuest && selectedQuest.hasActiveBid
-              ? selectedQuest.bidStatus === 'Pending'
-                ? 'Are you sure you want to withdraw your bid?'
-                : 'Are you sure you want to re-bid for this quest?'
-              : 'Are you sure you want to bid for this quest?'}
-            </Text>
-            
+                {selectedQuest && selectedQuest.hasActiveBid && selectedQuest.bidStatus === 'Won' && selectedQuest.status !== 'Up for Bidding'
+                  ? (<Text style={styles.modalStatus}>You have won this bid.</Text>)
+                  : selectedQuest && selectedQuest.status !== 'Up for Bidding'
+                  ? (<Text style={styles.modalStatus}>This quest is no longer available.</Text>)
+                  : null}
+                <Text
+                  style={[
+                    styles.modalDetail,
+                    { textAlign: 'center' },
+                    selectedQuest && selectedQuest.hasActiveBid && selectedQuest.bidStatus === 'Pending'
+                      ? { color: '#D9534F' }
+                      : {}
+                  ]}
+                >
+                    {selectedQuest && selectedQuest.status === 'Up for Bidding'
+                    ? selectedQuest.hasActiveBid
+                      ? selectedQuest.bidStatus === 'Pending'
+                      ? 'Are you sure you want to withdraw your bid?'
+                      : 'Are you sure you want to re-bid for this quest?'
+                      : 'Are you sure you want bid for this quest?'
+                    : ''}
+                </Text>
 
-              {bidButtonOptions.map((option, idx) =>
-              selectedQuest && option.condition(selectedQuest.hasActiveBid, selectedQuest.bidStatus) ? (
+                {selectedQuest && selectedQuest.status === 'Up for Bidding' &&
+                  bidButtonOptions.map((option, idx) =>
+                    selectedQuest && option.condition(selectedQuest.hasActiveBid, selectedQuest.bidStatus, selectedQuest.status) ? (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.modalButton, { backgroundColor: option.modalColor, marginVertical: 5, width: '100%' }]}
+                        onPress={() => {
+                          if (option.text === 'Bid') {
+                            createBid();
+                          } else if (option.text === 'Withdraw') {
+                            withdrawBid();
+                          } else if (option.text === 'Re-bid') {
+                            rebid();
+                          }
+                          setConfirmVisible(false);
+                        }}
+                      >
+                        <Text style={styles.modalButtonText}>{option.text}</Text>
+                      </TouchableOpacity>
+                    ) : null
+                  )}
+
                 <TouchableOpacity
-                key={idx}
-                style={[styles.modalButton, { backgroundColor: option.modalColor, marginVertical: 5, width: '100%' }]}
-                onPress={() => {
-                  if (option.text === 'Bid') {
-                  createBid();
-                  } else if (option.text === 'Withdraw') {
-                  withdrawBid();
-                  } else if (option.text === 'Re-bid') {
-                  rebid();
-                  }
-                  setConfirmVisible(false);
-                }}
+                  style={[styles.modalButton, { backgroundColor: '#808080', marginVertical: 5, width: '100%' }]}
+                  onPress={() => setConfirmVisible(false)}
                 >
-                <Text style={styles.modalButtonText}>{option.text}</Text>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-              ) : null
-              )}
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#808080', marginVertical: 5, width: '100%' }]}
-                onPress={() => setConfirmVisible(false)}
-                >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              </>}
+              </>
             </View>
           </View>
         </View>

@@ -49,6 +49,8 @@ const handleLogin = async () => {
 
   } catch (error) {
     Alert.alert("Login Failed", "Invalid email or password.");
+    setLoading(false);
+
   } finally {
     
   }
@@ -113,9 +115,9 @@ const handleLogin = async () => {
                   />
                   <Text style={styles.optionText}>Remember me</Text>
                 </TouchableOpacity>
-                <TouchableOpacity disabled={loading}>
+                {/* <TouchableOpacity disabled={loading}>
                   <Text style={styles.optionText}>Forgot Password?</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
 
               {/* Footer */}

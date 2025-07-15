@@ -6,7 +6,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import { useEffect, useState } from 'react';
 import { auth, db } from '../firebaseConfig';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { ActivityIndicator } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { onAuthStateChanged } from "firebase/auth";
@@ -57,8 +57,9 @@ export default function Homepage() {
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribe(); // unsubscribe from onAuthStateChanged
   }, []);
+
 
 
   const handleLogout = async () => {
@@ -183,7 +184,8 @@ export default function Homepage() {
         }
       })()}
 
-      <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}>
+      {/* <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}> */}
+      <TouchableOpacity style={styles.navItem} onPress={() => alert('This feature is coming soon!')}>
         <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
         <Text style={styles.navText}>DASHBOARD</Text>
       </TouchableOpacity>
@@ -198,7 +200,8 @@ export default function Homepage() {
       <View>
         {showMore && (
           <View style={styles.hiddenButtonsContainer}>
-            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}>
+            {/* <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}> */}
+            <TouchableOpacity style={styles.navItem} onPress={() => alert('This feature is coming soon!')}>
               <FontAwesome name="shopping-basket" size={28} color="#FFFFFF" />
               <Text style={styles.navText}>MARKET</Text>
             </TouchableOpacity>
@@ -245,7 +248,7 @@ export default function Homepage() {
       <View style={styles.recentExportsContainer}>
         <View style={styles.recentExportsHeader}>
           <Text style={styles.recentExportsTitle}>Recent Exports</Text>
-          <TouchableOpacity onPress={() => console.log('All clicked')} style={styles.allButton}>
+          <TouchableOpacity style={styles.allButton}>
             <Text style={styles.allButtonText}>All</Text>
           </TouchableOpacity>
         </View>

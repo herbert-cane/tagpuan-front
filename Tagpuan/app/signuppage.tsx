@@ -43,7 +43,6 @@ const Register = () => {
   const deliveryModes = [
     { id: 'pickup', name: 'Pickup' },
     { id: 'delivery', name: 'Delivery' },
-
   ];
 
   useEffect(() => {

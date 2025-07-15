@@ -23,7 +23,8 @@ export default function BiddingDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(true); // <-- Add loading state
+  const [loading, setLoading] = useState(true);
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   // Helper function to format a timestamp (milliseconds) to a readable date
   const formatDate = (timestamp: number) => {
@@ -378,20 +379,14 @@ export default function BiddingDashboard() {
                           {/* Vertical Divider */}
                           <View style={styles.verticalDivider} />
 
-                          {/* Accept / Reject */}
+                          {/* Select winning bid */}
                           {bidder.status === "Pending" ? (
                             <>
                               <TouchableOpacity
                                 style={styles.acceptBtn}
-                                onPress={() => setWinningBid(selectedRequest.id, bidder.id)}
+                                onPress={() => {setConfirmVisible(true); setSelectedRequest({ ...selectedRequest, selectedBidId: bidder.id })}}
                               >
-                                <Text style={styles.actionText}>✔</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.rejectBtn}
-                                onPress={() => console.log('Rejected', bidder.id)}
-                              >
-                                <Text style={styles.actionText}>✖</Text>
+                                <Text style={styles.actionText}> Select </Text>
                               </TouchableOpacity>
                             </>
                           ) : bidder.status === "Withdrawn" ? (
@@ -408,6 +403,42 @@ export default function BiddingDashboard() {
                 </View>
               </>
             )}
+
+            <Modal
+              animationType="fade"
+              transparent={true}
+              visible={confirmVisible}
+              onRequestClose={() => setConfirmVisible(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Confirm Selection</Text>
+                  <Text style={{ color: '#073B3A', textAlign: 'center', marginBottom: 16 }}>
+                    Are you sure you want to select this bid as the winning bid?
+                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+
+                    <TouchableOpacity
+                      style={[styles.rejectBtn, { flex: 1, marginRight: 8 }]}
+                      onPress={() => setConfirmVisible(false)}
+                    >
+                      <Text style={styles.actionText}>No</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.acceptBtn, { flex: 1, marginRight: 8 }]}
+                      onPress={() => {
+                        if (selectedRequest && selectedRequest.id && selectedRequest.selectedBidId) {
+                          setWinningBid(selectedRequest.id, selectedRequest.selectedBidId);
+                          setConfirmVisible(false);
+                        }
+                      }}
+                    >
+                      <Text style={styles.actionText}>Yes</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
 
             <TouchableOpacity style={styles.modalCloseButton} onPress={() => setModalVisible(false)}>
               <Text style={styles.modalCloseText}>Close</Text>
@@ -506,11 +537,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 6,
     marginRight: 8, // Add spacing between buttons
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   rejectBtn: {
     backgroundColor: '#D9534F',
     borderRadius: 4,
     padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionText: {
     color: '#fff',

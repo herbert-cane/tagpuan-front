@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
-import { auth } from '@/firebaseConfig';
+import { auth, db } from '@/firebaseConfig';
 import { Buffer } from 'buffer';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, getDoc, where } from "firebase/firestore";
+
 
 interface Contact {
   id: string;
@@ -13,68 +15,63 @@ interface Contact {
   message: string;
   image: string;
   isOnline: boolean;
+  otherId: string; // ID of the other participant in the conversation
 }
 
 export default function MessageListPage() {
 
   const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState<boolean>(true); // <- start as true
+
 
   // Fetch contacts from API or database
   useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    const fetchContacts = async () => {
-      const user = auth.currentUser;
-      if (!user) throw new Error('User not authenticated');
+  if (!auth.currentUser?.uid) return;
 
-      const token = await user.getIdToken();
+  const userId = auth.currentUser.uid;
+  const q = query(collection(db, "conversations"), where("participants", "array-contains", userId));
 
-      try {
-        const response = await fetch(`${FIREBASE_API}/conversation/user`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!response.ok) throw new Error("Failed to fetch contacts");
-        const conversations = await response.json();
+  const unsubscribe = onSnapshot(q, async (snapshot) => {
+    setLoading(true); 
+    const contactPromises = snapshot.docs.map(async (docSnap) => {
+      const convData = docSnap.data();
+      const convId = docSnap.id;
+      const otherId = convData.participants.find((id: string) => id !== userId);
 
-        // For each conversation, get the other participant's details
-        const contactPromises = conversations.map(async (conv: any) => {
-          const otherId = conv.participants.find((pid: string) => pid !== user.uid);
-          // Fetch user details for other participant
-          const userRes = await fetch(`${FIREBASE_API}/user/${otherId}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          if (!userRes.ok) throw new Error("Failed to fetch user details");
-          const otherUser = await userRes.json();
+      // Get last message (assuming messages is sorted or you just pick last)
+      const lastMessage = (convData.messages || []).slice(-1)[0];
+      let otherUser = null;
 
-          return {
-            id: conv.id,
-            name: otherUser.first_name + " " + otherUser.last_name || "Unknown",
-            message: conv.messages?.length > 0 ? conv.messages[conv.messages.length - 1].content : "No messages yet",
-            image: otherUser.profile_picture || "",
-            isOnline: otherUser.isOnline,
-          } as Contact;
-        });
-
-        const contactsData = await Promise.all(contactPromises);
-        setContacts(contactsData);
-      } catch (error) {
-        console.error(error);
+      // Fetch other user data from Firestore
+      if (otherId) {
+        try {
+          const otherUserSnap = await getDoc(doc(db, "users", otherId));
+          if (otherUserSnap.exists()) {
+            otherUser = otherUserSnap.data();
+          }
+        } catch (error) {
+          console.error(`Failed to fetch user ${otherId}`, error);
+        }
       }
-    };
 
-    fetchContacts();
-    intervalId = setInterval(fetchContacts, 500);
-  }, []);
-  // 
-  const [loading] = useState<boolean>(false); // no more fetching
+      return {
+        id: convId,
+        otherId,
+        name: otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : "Unknown",
+        message: lastMessage?.content || "No messages yet",
+        image: otherUser?.profile_picture || "",
+        isOnline: otherUser?.isOnline ?? false,
+      } as Contact;
+    });
+
+    const contacts = await Promise.all(contactPromises);
+    setContacts(contacts);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
 
   if (loading) {
     return (
@@ -122,7 +119,7 @@ export default function MessageListPage() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         />
-          </>
+        </>
         )}
       </View>
 
@@ -132,20 +129,29 @@ export default function MessageListPage() {
 }
 
 const TopContactCard = ({ contact }: { contact: Contact }) => (
-  <View style={styles.topContactCard}>
-    <Image
-      source={
+  <TouchableOpacity
+    onPress={() => {
+      const base64Image = Buffer.from(contact.image).toString("base64");
+      router.push(
+        `/messagepage?conversationId=${contact.id}&name=${contact.name}&image=${base64Image}&otherId=${contact.otherId}`
+      );
+    }}
+  >
+    <View style={styles.topContactCard}>
+      <Image
+        source={
           contact.image
             ? { uri: contact.image }
             : require("../assets/images/react-logo.png")
-      }
-      style={styles.topProfilePic}
-    />
-    {contact.isOnline && <View style={styles.onlineIndicator} />}
-    <Text style={styles.topContactName} numberOfLines={1}>
-      {contact.name}
-    </Text>
-  </View>
+        }
+        style={styles.topProfilePic}
+      />
+      {contact.isOnline && <View style={styles.onlineIndicator} />}
+      <Text style={styles.topContactName} numberOfLines={1}>
+        {contact.name}
+      </Text>
+    </View>
+  </TouchableOpacity>
 );
 
 const ContactCard = ({ contact }: { contact: Contact }) => {
@@ -156,7 +162,7 @@ const ContactCard = ({ contact }: { contact: Contact }) => {
       onPress={() =>
         router.push(
           `/messagepage?conversationId=${contact.id}&name=
-            ${contact.name}&image=${base64Image}`
+            ${contact.name}&image=${base64Image}&otherId=${contact.otherId}`
         )
       }
     >

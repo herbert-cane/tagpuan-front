@@ -170,8 +170,6 @@ const createRequest = () => {
       });
 
       const responseBody = await response.text();
-      console.log("Backend response:", response.status, responseBody);
-
       if (response.ok) {
         alert("Request created successfully!");
         router.push('/homepage');

@@ -1,17 +1,54 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
-const filterOptions = {
-  commodity: ['Onion (Sibuyas)', 'Garlic (Bawang)', 'Tomatoes (Kamatis)', 'Lettuce (Litsugas)', 'Chicken (Manok)', 'Pork (Baboy)', 'Beef (Baka)', 'Corn (Mais)', 'Jackfruit (Langka)'],
-  Delivery: ['Pick Up', 'Deliver'],
-  Payment: ['Cash on Delivery', 'Gcash', 'Maya'],
+type Commodity = {
+  id: string;
+  hil_name: string;
+  en_name: string;
+};
+
+const useCommodities = () => {
+  const [commodities, setCommodities] = useState<Commodity[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'commodities'),
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            hil_name: data.hil_name ?? '',
+            en_name: data.en_name ?? '',
+          };
+        });
+        setCommodities(items);
+      },
+      (error) => {
+        console.error('Error fetching commodities:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  return commodities;
 };
 
 type SelectedFilters = {
-  commodity?: string;
-  Delivery?: string;
-  Payment?: string;
+  commodity?: string[];        // Changed to array
+  deliveryMode?: string[];     // Changed to array
+  paymentTerms?: string[];     // Changed to array
 };
 
 type QuestFilterProps = {
@@ -22,12 +59,33 @@ type QuestFilterProps = {
 
 const SwipeFilter: React.FC<QuestFilterProps> = ({ visible, onClose, onApply }) => {
   const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({});
+  const commodities = useCommodities();
+
+  const paymentList = [
+    { id: 'cod', name: 'Cash On Delivery' },
+    { id: 'gcash', name: 'GCash (E-Wallet)' },
+    { id: 'maya', name: 'Maya (E-Wallet)' },
+    { id: 'bank', name: 'Bank Transfer' },
+  ];
+
+  const deliveryModes = [
+    { id: 'pickup', name: 'Pickup' },
+    { id: 'delivery', name: 'Delivery' },
+  ];
+
 
   const toggleFilter = (category: keyof SelectedFilters, value: string) => {
-    setSelectedFilters((prev) => ({
-      ...prev,
-      [category]: prev[category] === value ? undefined : value,
-    }));
+    setSelectedFilters((prev) => {
+      const current = prev[category] || [];
+      const exists = (current as string[]).includes(value);
+      const updated = exists
+        ? (current as string[]).filter((v) => v !== value)
+        : [...(current as string[]), value];
+      return {
+        ...prev,
+        [category]: updated,
+      };
+    });
   };
 
   return (
@@ -36,22 +94,80 @@ const SwipeFilter: React.FC<QuestFilterProps> = ({ visible, onClose, onApply }) 
         <View style={styles.modalContent}>
           <Text style={styles.title}>Filter</Text>
           <ScrollView>
-            {Object.keys(filterOptions).map((category) => (
-              <View key={category} style={styles.categoryContainer}>
-                <Text style={styles.categoryTitle}>{category.toUpperCase()}</Text>
-                {(filterOptions as any)[category].map((option: string) => (
-                  <TouchableOpacity key={option} style={styles.option} onPress={() => toggleFilter(category as keyof SelectedFilters, option)}>
-                    <Ionicons
-                      name={selectedFilters[category as keyof SelectedFilters] === option ? 'checkbox' : 'square-outline'}
-                      size={24}
-                      color="green"
-                    />
-                    <Text style={styles.optionText}>{option}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
+            {/* Commodities Section */}
+            <View style={styles.categoryContainer}>
+              <Text style={styles.categoryTitle}>COMMODITIES</Text>
+              {commodities.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={styles.option}
+                  onPress={() => toggleFilter('commodity', option.id)}
+                >
+                  <Ionicons
+                    name={
+                      selectedFilters.commodity?.includes(option.id)
+                        ? 'checkbox'
+                        : 'square-outline'
+                    }
+                    size={24}
+                    color="green"
+                  />
+                  <Text style={styles.optionText}>
+                    {option.en_name} ({option.hil_name})
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Delivery Modes */}
+            <View style={styles.categoryContainer}>
+              <Text style={styles.categoryTitle}>DELIVERY MODE</Text>
+              {deliveryModes.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={styles.option}
+                  onPress={() => toggleFilter('deliveryMode', option.id)}
+                >
+                  <Ionicons
+                    name={
+                      selectedFilters.deliveryMode?.includes(option.id)
+                        ? 'checkbox'
+                        : 'square-outline'
+                    }
+                    size={24}
+                    color="green"
+                  />
+                  <Text style={styles.optionText}>{option.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+
+            {/* Payment Terms */}
+            <View style={styles.categoryContainer}>
+              <Text style={styles.categoryTitle}>PAYMENT TERMS</Text>
+              {paymentList.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={styles.option}
+                  onPress={() => toggleFilter('paymentTerms', option.id)}
+                >
+                  <Ionicons
+                    name={
+                      selectedFilters.paymentTerms?.includes(option.id)
+                        ? 'checkbox'
+                        : 'square-outline'
+                    }
+                    size={24}
+                    color="green"
+                  />
+                  <Text style={styles.optionText}>{option.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
+
+          {/* Buttons */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={onClose}>
               <Text style={styles.buttonText}>Cancel</Text>

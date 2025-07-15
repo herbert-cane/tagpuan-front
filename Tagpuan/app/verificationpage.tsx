@@ -60,7 +60,6 @@ export default function VerificationPage() {
     const fetchUnverified = async () => {
       try {
         const token = await auth.currentUser?.getIdToken();
-        console.log(token)
         const response = await fetch(`${FIREBASE_API}/user/unverified`, {
           method: 'GET',
           headers: {
@@ -72,9 +71,6 @@ export default function VerificationPage() {
         setApplicantsList(data);
         setSelectedApplicant(data[0]);
         setLoading(false);
-
-        console.log(selectedApplicant)
-
       } catch (error) {
         console.error('Error fetching applicants:', error);
       }

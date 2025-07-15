@@ -13,7 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import theme from "../constants/theme";
 import { auth, db } from "@/firebaseConfig";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams } from 'expo-router';
 
@@ -29,6 +29,22 @@ const ProfilePage = () => {
   const { tab } = params;
   const [activeTab, setActiveTab] = useState(tab === 'posts' ? 'posts' : 'details');
   const [certifications, setCertifications] = useState<string[]>([]);
+  const [commodities, setCommodities] = useState<{ id: string; [key: string]: any }[]>([]);
+  const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
+  const [selectedDeliveryModes, setSelectedDeliveryModes] = useState<string[]>([]);
+  const [selectedPaymentTerms, setSelectedPaymentTerms] = useState<string[]>([]);
+
+  const paymentList = [
+    { id: 'cod', name: 'Cash On Delivery' },
+    { id: 'gcash', name: 'GCash (E-Wallet)' },
+    { id: 'maya', name: 'Maya (E-Wallet)' },
+    { id: 'bank', name: 'Bank Transfer' },
+  ];
+
+  const deliveryModes = [
+    { id: 'pickup', name: 'Pickup' },
+    { id: 'delivery', name: 'Delivery' },
+  ];
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -58,6 +74,40 @@ const ProfilePage = () => {
     fetchUserData();
   }, [userId]);
 
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "commodities"),
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setCommodities(items);
+      },
+      (error) => {
+        console.error("Error fetching commodities:", error);
+    }
+  );
+
+  return () => unsubscribe();
+  }, []);
+
+
+  useEffect(() => {
+    if (isEditing && userData?.farmer_details) {
+      setSelectedDeliveryModes(userData.farmer_details.modeOfDelivery || []);
+      setSelectedPaymentTerms(userData.farmer_details.paymentTerms || []);
+    }
+  }, [isEditing, userData]);
+
+  useEffect(() => {
+    if (isEditing && userData?.farmer_details?.commodity) {
+      setSelectedCommodities(userData.farmer_details.commodity);
+    }
+  }, [isEditing, userData]);
+
+
+
   const handleEdit = () => {
     setEditedData(userData || {});
     setIsEditing(true);
@@ -73,9 +123,18 @@ const ProfilePage = () => {
     try {
       const uid = userId || auth.currentUser.uid;
       const userRef = doc(db, "users", uid);
-      await updateDoc(userRef, editedData);
+      await updateDoc(userRef, {
+        ...editedData,
+        farmer_details: {
+          ...editedData.farmer_details,
+          commodity: selectedCommodities,
+          modeOfDelivery: selectedDeliveryModes,
+          paymentTerms: selectedPaymentTerms,
+        },
+      });
       setUserData(editedData);
       setIsEditing(false);
+      router.push(`/profilepage?userId=${uid}&tab=details`);
     } catch (error) {
       console.error("Error updating user data:", error);
     }
@@ -160,7 +219,7 @@ const ProfilePage = () => {
         <Text style={styles.title}>PROFILE</Text>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.push("/homepage")}
+          onPress={() => router.back()}
         >
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
@@ -168,27 +227,43 @@ const ProfilePage = () => {
 
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <Image
-          source={{ uri: userData?.profile_picture }}
-          style={styles.profileImage}
-        />
+        <View>
+          <Image
+        source={{ uri: isEditing ? editedData.profile_picture : userData?.profile_picture }}
+        style={styles.profileImage}
+          />
+          {isOwnProfile && isEditing && (
+          <TouchableOpacity style={styles.uploadButton} onPress={async () => {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsEditing: true,
+              quality: 1,
+            });
+            if (!result.canceled && result.assets?.[0]?.uri) {
+              setEditedData({ ...editedData, profile_picture: result.assets[0].uri });
+            }
+          }}>
+            <Text style={styles.uploadText}>Change Photo</Text>
+          </TouchableOpacity>
+          )}
+        </View>
         <View>
           <Text style={styles.name}>
-            {userData?.first_name} {userData?.last_name}
+        {userData?.first_name} {userData?.last_name}
           </Text>
           <View style={styles.verifiedRow}>
-            <Image
-              source={
-                userData?.verification === "Approved"
-                  ? require("../assets/images/verified.png")
-                  : require("../assets/images/error.png")
-              }
-              style={styles.verifiedIcon}
-            />
-            <Text style={styles.verifiedText}>
-              {" "}
-              {userData?.verification === "Approved" ? "Verified" : "Not Verified"}
-            </Text>
+        <Image
+          source={
+            userData?.verification === "Approved"
+          ? require("../assets/images/verified.png")
+          : require("../assets/images/error.png")
+          }
+          style={styles.verifiedIcon}
+        />
+        <Text style={styles.verifiedText}>
+          {" "}
+          {userData?.verification === "Approved" ? "Verified" : "Not Verified"}
+        </Text>
           </View>
         </View>
       </View>
@@ -295,86 +370,198 @@ const ProfilePage = () => {
                 </Text>
               )}
             </View>
-
+            
             <View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.role}
-                  onChangeText={(text) => setEditedData({ ...editedData, role: text })}
-                  placeholder="Role"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>Role: {userData?.role}</Text>
-              )}
+              <Text style={styles.details}>Role: {userData?.role}</Text>
             </View>
 
             {/* Products Offered */}
             {userData?.role === "Farmer" &&
-            (<View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.products_offered}
-                  onChangeText={(text) =>
-                    setEditedData({ ...editedData, products_offered: text })
-                  }
-                  placeholder="Products Offered"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>
-                  Products Offered: {userData?.products_offered || "Not specified"}
-                </Text>
-              )}
-            </View>)}
+            <View style={styles.detailBox}>
+            <Text style={styles.details}>Products Offered:</Text>
+            {isEditing ? (
+              <>
+                {commodities.map((item) => {
+                  const isSelected = selectedCommodities.includes(item.id);
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.dropdownItem,
+                        isSelected && styles.selectedRoleButton
+                      ]}
+                      onPress={() => {
+                        setSelectedCommodities((prev) =>
+                          isSelected
+                            ? prev.filter((id) => id !== item.id)
+                            : [...prev, item.id]
+                        );
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownText,
+                          isSelected && styles.selectedRoleText
+                        ]}
+                      >
+                        {isSelected ? '✔ ' : ''}
+                        {item.en_name} ({item.hil_name})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                {userData?.farmer_details?.commodity?.length > 0 ? (
+                  userData?.farmer_details.commodity
+                    .map((id: string) => {
+                      const found = commodities.find((c) => c.id === id);
+                      return found ? `${found.en_name} (${found.hil_name})` : null;
+                    })
+                  .filter(Boolean)
+                  .map((item: string, index: number) => (
+                    <Text key={index} style={styles.details}>
+                      • {item}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.details}>Not specified</Text>
+                )}
+              </>
+            )}
+            </View>}
+
 
             {/* Mode of Delivery */}
             {userData?.role === "Farmer" && 
             (<View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.mode_of_delivery}
-                  onChangeText={(text) =>
-                    setEditedData({ ...editedData, mode_of_delivery: text })
-                  }
-                  placeholder="Mode of Delivery"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>
-                  Mode of Delivery: {userData?.mode_of_delivery || "Not specified"}
-                </Text>
-              )}
-            </View>)}
+            <Text style={styles.details}>Mode of Delivery:</Text>
+            {isEditing ? (
+              deliveryModes.map((item) => {
+                const isSelected = selectedDeliveryModes.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.dropdownItem,
+                      isSelected && styles.selectedRoleButton
+                    ]}
+                    onPress={() => {
+                      setSelectedDeliveryModes((prev) =>
+                        isSelected
+                          ? prev.filter((id) => id !== item.id)
+                          : [...prev, item.id]
+                      );
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        isSelected && styles.selectedRoleText
+                      ]}
+                    >
+                      {isSelected ? '✔ ' : ''}
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            ) : userData?.farmer_details?.modeOfDelivery?.length > 0 ? (
+              userData.farmer_details.modeOfDelivery.map((id: string, index: number) => {
+                const found = deliveryModes.find((d) => d.id === id);
+                return found ? (
+                  <Text key={index} style={styles.details}>
+                    • {found.name}
+                  </Text>
+                ) : null;
+              })
+            ) : (
+              <Text style={styles.details}>Not specified</Text>
+            )}
+          </View>
+            )}
 
-            {/* Description */}
+            {/* Mode of Delivery */}
             {userData?.role === "Farmer" && 
             (<View style={styles.detailBox}>
+            <Text style={styles.details}>Payment Terms:</Text>
+            {isEditing ? (
+              paymentList.map((item) => {
+                const isSelected = selectedPaymentTerms.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.dropdownItem,
+                      isSelected && styles.selectedRoleButton
+                    ]}
+                    onPress={() => {
+                      setSelectedPaymentTerms((prev) =>
+                        isSelected
+                          ? prev.filter((id) => id !== item.id)
+                          : [...prev, item.id]
+                      );
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownText,
+                        isSelected && styles.selectedRoleText
+                      ]}
+                    >
+                      {isSelected ? '✔ ' : ''}
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            ) : userData?.farmer_details?.paymentTerms?.length > 0 ? (
+              userData.farmer_details.paymentTerms.map((id: string, index: number) => {
+                const found = paymentList.find((p) => p.id === id);
+                return found ? (
+                  <Text key={index} style={styles.details}>
+                    • {found.name}
+                  </Text>
+                ) : null;
+              })
+            ) : (
+              <Text style={styles.details}>Not specified</Text>
+            )}
+          </View>
+            )}
+
+            {/* User Description */}
+            <View style={styles.detailBox}>
               {isEditing ? (
                 <TextInput
-                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-                  multiline
+                  style={[styles.input, styles.textArea]}
                   value={editedData.description}
                   onChangeText={(text) => setEditedData({ ...editedData, description: text })}
-                  placeholder="Short description about you"
+                  placeholder="User Description..."
                   placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top" // Ensures text starts at the top-left
                 />
               ) : (
-                <Text style={styles.details}>
-                  Description: {userData?.description || "No description provided."}
+                <>
+                <Text style={styles.detailsLabel}>User Description:</Text>
+                <Text style={styles.detailsValue}>
+                  {userData?.description?.trim() || "No description yet."}
                 </Text>
+                </>
               )}
-            </View>)}
+            </View>
 
+
+            {/* Certifications */}
             {userData?.role === "Farmer" && (
             <View style={styles.detailBox}>
               <Text style={styles.details}>Certifications:</Text>
 
               {certifications.length === 0 ? (
-                <Text style={styles.noPosts}>No certifications uploaded.</Text>
+                <Text style={styles.noCertifications}>No certifications uploaded.</Text>
               ) : (
                 <View style={styles.certGrid}>
                   {certifications.map((uri, index) => (
@@ -389,6 +576,7 @@ const ProfilePage = () => {
                 </TouchableOpacity>
               )}
             </View>)}
+
           </>
         ) : (
           <>
@@ -518,8 +706,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   editButtonsRow: {
-  flexDirection: "row",
-  gap: 10,
+    flexDirection: "row",
+    gap: 10,
   },
   cancelButton: {
     backgroundColor: "#DDB771",
@@ -574,8 +762,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#073B3A",
   },
   postSection: {
-  marginTop: 20,
-  marginBottom: 40,
+    marginTop: 20,
+    marginBottom: 40,
   },
   postHeader: {
     flexDirection: "row",
@@ -600,6 +788,11 @@ const styles = StyleSheet.create({
   },
   noPosts: {
     color: "#fff",
+    fontFamily: "NovaSquare-Regular",
+    fontSize: 14,
+  },
+  noCertifications: {
+    color: "#ccc",
     fontFamily: "NovaSquare-Regular",
     fontSize: 14,
   },
@@ -653,6 +846,46 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#ccc',
   },
+  dropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#08A045",
+  },
+  dropdownText: {
+    color: "#08A045",
+    fontSize: 14,
+    fontFamily: "NovaSquare-Regular",
+  },
+  selectedRoleButton: { 
+    backgroundColor: "#08A045", // green
+  },
+  selectedRoleText: { 
+    fontSize: 14,
+    color: "#fff",
+    fontFamily: "NovaSquare-Regular",
+  },
+  textArea: {
+    height: 100, // Adjust height as needed
+    paddingTop: 10,
+    textAlignVertical: "top",
+  },
+  detailsLabel: {
+    fontSize: 14,
+    color: "#08A045",
+    fontFamily: "NovaSquare-Regular",
+    marginBottom: 4,
+  },
+  detailsValue: {
+    fontSize: 14,
+    color: "#333",
+    fontFamily: "NovaSquare-Regular",
+    lineHeight: 20,
+  },
+
 });
 
 export default ProfilePage;

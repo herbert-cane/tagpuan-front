@@ -11,7 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import theme from '../constants/theme';
 import { Buffer } from 'buffer';
 import { auth, db } from '@/firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, getDoc } from "firebase/firestore";
 
 interface Message {
   id: string;
@@ -22,11 +22,13 @@ interface Message {
 export default function MessagePage() {
   const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL ?? '';
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
-  const { name, image, conversationId } = useLocalSearchParams();
+  const { name, image, conversationId, otherId } = useLocalSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList<any>>(null);
+
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -66,38 +68,35 @@ export default function MessagePage() {
     : '';
 
   useEffect(() => {
-    if (!conversationId) return;
-    let intervalId: NodeJS.Timeout;
+    if (!conversationId || !auth.currentUser?.uid) return;
 
-    const fetchConversationDetails = async () => {
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        const response = await fetch(`${FIREBASE_API}/conversation/get/${conversationId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) throw new Error('Failed to fetch conversation');
-        const data = await response.json();
-        if (Array.isArray(data.messages)) {
-          const formattedMessages = data.messages.map((msg: any, idx: number) => ({
-            id: msg.timestamp?.toString() || idx.toString(),
-            text: msg.content,
-            isSender: msg.sender_id === auth.currentUser?.uid,
-          }));
-          setMessages(formattedMessages);
-          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-        }
-      } catch (error) {
-        console.error('Error fetching conversation:', error);
-      }
-    };
+    const conversationRef = doc(db, "conversations", conversationId as string);
 
-    fetchConversationDetails();
-    intervalId = setInterval(fetchConversationDetails, 500);
+    const unsubscribe = onSnapshot(conversationRef, async (docSnap) => {
+      const data = docSnap.data();
+      if (!data || !Array.isArray(data.messages)) return;
 
-    return () => clearInterval(intervalId);
+      const sortedMessages = data.messages
+        .sort((a, b) => (a.timestamp?.seconds ?? 0) - (b.timestamp?.seconds ?? 0))
+        .map((msg: any, idx: number) => ({
+          id: msg.timestamp?.seconds?.toString() || idx.toString(),
+          text: msg.content,
+          isSender: msg.sender_id === auth.currentUser?.uid,
+        }));
+
+      setMessages(sortedMessages);
+
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+
+      // Mark hasUnread as false for this user
+      await updateDoc(conversationRef, {
+        [`hasUnread.${auth.currentUser?.uid}`]: false,
+      });
+    });
+
+    return () => unsubscribe();
   }, [conversationId]);
+
 
   const handleAttachment = async () => {
     try {
@@ -106,7 +105,8 @@ export default function MessagePage() {
         console.log('File selected:', result.assets[0]);
       }
     } catch (error) {
-      console.log('Error picking document:', error);
+      console.error('Error picking document:', error);
+      alert('Failed to pick document. Please try again.');
     }
   };
 
@@ -120,10 +120,8 @@ export default function MessagePage() {
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
-    console.log("Sending message:", inputMessage);
     try {
       const token = await auth.currentUser?.getIdToken();
-      console.log("Token:", token);
       const response = await fetch(`${FIREBASE_API}/conversation/send/${conversationId}`, {
         method: 'POST',
         headers: {
@@ -172,16 +170,22 @@ export default function MessagePage() {
       </View>
 
       {/* Profile Section */}
-      <View style={styles.profileSection}>
+      <TouchableOpacity
+        style={styles.profileSection}
+        activeOpacity={0.7}
+        onPress={() => {
+        router.push({
+          pathname: '/profilepage',
+          params: { userId: otherId },
+          });
+        }}
+      >
         <Image
-          source={decodedImage
-              ? { uri: decodedImage }
-              : require("../assets/images/react-logo.png")
-          }
+          source={decodedImage ? { uri: decodedImage } : require("../assets/images/react-logo.png")}
           style={styles.profilePic}
         />
-        <Text style={styles.profileName}>{name}</Text>
-      </View>
+        <Text style={styles.profileName}>{trimmedName}</Text>
+      </TouchableOpacity>
 
       {/* Message Section */}
       <View style={styles.messageSection}>
@@ -262,9 +266,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backText: { color: '#DDB771', fontSize: 24, fontWeight: 'bold' },
-  profileSection: { alignItems: 'center', marginBottom: 20 },
   profilePic: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
-  profileName: { color: '#DDB771', fontSize: 22, fontWeight: 'bold' },
+  profileSection: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  profileName: {
+    color: '#DDB771',
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    alignSelf: 'center',
+    marginTop: 8,
+  },
   messageSection: {
     flex: 1,
     paddingBottom: 60,
