@@ -187,7 +187,7 @@ const createRequest = () => {
       const responseBody = await response.text();
       if (response.ok) {
         alert("Request created successfully!");
-        router.push('/homepage');
+        router.back();
       } else {
         alert("Failed to create request.");
       }
@@ -201,7 +201,7 @@ const createRequest = () => {
   return (
     <LinearGradient colors={['#073B3A', '#0B6E4F', '#08A045', '#6BBF59']} style={styles.container}>
       <View style={styles.headerContainer}>
-        <TouchableOpacity style={styles.backButton} onPress={() =>router.push('/homepage')}>
+        <TouchableOpacity style={styles.backButton} onPress={() =>router.back()}>
           <Ionicons name="chevron-back" size={20} color="#DDB771" />
         </TouchableOpacity>
         <Text style={styles.title}>MAKE A REQUEST</Text>

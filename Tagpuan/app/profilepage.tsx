@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   TextInput,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -18,7 +19,6 @@ import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams } from 'expo-router';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-
 const ProfilePage = () => {
   const [showMore, setShowMore] = useState(false);
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
@@ -26,6 +26,7 @@ const ProfilePage = () => {
   const [loadingUser, setLoadingUser] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [userPosts, setUserPosts] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false); // 🔧 Added uploading state
   const params = useLocalSearchParams();
   const userId = params.userId as string | undefined;
   const { tab } = params;
@@ -35,6 +36,7 @@ const ProfilePage = () => {
   const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
   const [selectedDeliveryModes, setSelectedDeliveryModes] = useState<string[]>([]);
   const [selectedPaymentTerms, setSelectedPaymentTerms] = useState<string[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const paymentList = [
     { id: 'cod', name: 'Cash On Delivery' },
@@ -100,12 +102,11 @@ const ProfilePage = () => {
       },
       (error) => {
         console.error("Error fetching commodities:", error);
-    }
-  );
+      }
+    );
 
-  return () => unsubscribe();
+    return () => unsubscribe();
   }, []);
-
 
   useEffect(() => {
     if (isEditing && userData?.farmer_details) {
@@ -120,8 +121,6 @@ const ProfilePage = () => {
     }
   }, [isEditing, userData]);
 
-
-
   const handleEdit = () => {
     setEditedData(userData || {});
     setIsEditing(true);
@@ -133,26 +132,37 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    if (!auth.currentUser) return;
-    try {
-      const uid = userId || auth.currentUser.uid;
-      const userRef = doc(db, "users", uid);
-      await updateDoc(userRef, {
-        ...editedData,
-        farmer_details: {
-          ...editedData.farmer_details,
-          commodity: selectedCommodities,
-          modeOfDelivery: selectedDeliveryModes,
-          paymentTerms: selectedPaymentTerms,
-        },
-      });
-      setUserData(editedData);
-      setIsEditing(false);
-      router.push(`/profilepage?userId=${uid}&tab=details`);
-    } catch (error) {
-      console.error("Error updating user data:", error);
-    }
-  };
+  if (!auth.currentUser) return;
+
+  try {
+    const uid = userId || auth.currentUser.uid;
+    const userRef = doc(db, "users", uid);
+
+    // Build updated user object
+    const updatedUser = {
+      ...userData, // keep existing fields
+      ...editedData, // overwrite editable fields
+      certifications, // ensure latest certifications
+      farmer_details: {
+        ...userData?.farmer_details,
+        ...editedData?.farmer_details,
+        commodity: selectedCommodities,
+        modeOfDelivery: selectedDeliveryModes,
+        paymentTerms: selectedPaymentTerms,
+      },
+      posts: userPosts,
+    };
+
+    await updateDoc(userRef, updatedUser);
+    setUserData(updatedUser);
+    setIsEditing(false);
+    router.push(`/profilepage?userId=${uid}&tab=details`);
+  } catch (error) {
+    console.error("Error updating user data:", error);
+  }
+};
+
+
 
   const handlePickImage = async () => {
     if (userId) return;
@@ -161,6 +171,7 @@ const ProfilePage = () => {
       const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
       if (result.canceled || !result.assets?.length) return;
 
+      setUploading(true); // 🔧 Start loader
       const file = result.assets[0];
       const uid = auth.currentUser?.uid;
       if (!uid) throw new Error("User UID is undefined.");
@@ -174,37 +185,42 @@ const ProfilePage = () => {
       await updateDoc(userRef, { posts: updatedPosts });
     } catch (error) {
       console.error("Error uploading post image:", error);
+    } finally {
+      setUploading(false); // 🔧 End loader
     }
   };
 
-
   const handlePickCertification = async () => {
-  if (userId) return;
+    if (userId) return;
 
-  try {
-    const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-    if (result.canceled || !result.assets?.length) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
+      if (result.canceled || !result.assets?.length) return;
 
-    if (certifications.length >= 5) {
-      alert("Maximum of 5 certifications allowed.");
-      return;
+      if (certifications.length >= 5) {
+        alert("Maximum of 5 certifications allowed.");
+        return;
+      }
+
+      setUploading(true); // 🔧 Start loader
+      const file = result.assets[0];
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error("User UID is undefined.");
+
+      const fileName = `certifications/${uid}/${Date.now()}_${file.name}`;
+      const downloadURL = await uploadImageAsync(file.uri, fileName);
+      const updatedCerts = [...certifications, downloadURL];
+
+      setCertifications(updatedCerts);
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, { certifications: updatedCerts });
+    } catch (error) {
+      console.error("Error uploading certification:", error);
+    } finally {
+      setUploading(false); // 🔧 End loader
+      router.push(`/profilepage?userId=${auth.currentUser?.uid}&tab=details`);
     }
-
-    const file = result.assets[0];
-    const uid = auth.currentUser?.uid;
-    if (!uid) throw new Error("User UID is undefined.");
-
-    const fileName = `certifications/${uid}/${Date.now()}_${file.name}`;
-    const downloadURL = await uploadImageAsync(file.uri, fileName);
-    const updatedCerts = [...certifications, downloadURL];
-
-    setCertifications(updatedCerts);
-    const userRef = doc(db, "users", uid);
-    await updateDoc(userRef, { certifications: updatedCerts });
-  } catch (error) {
-    console.error("Error uploading certification:", error);
-  }
-};
+  };
 
   if (loadingUser) {
     return (
@@ -578,22 +594,26 @@ const ProfilePage = () => {
             <View style={styles.detailBox}>
               <Text style={styles.details}>Certifications:</Text>
 
-              {certifications.length === 0 ? (
+              {(isEditing ? certifications : userData?.certifications || []).length === 0 ? (
                 <Text style={styles.noCertifications}>No certifications uploaded.</Text>
               ) : (
                 <View style={styles.certGrid}>
-                  {certifications.map((uri, index) => (
-                    <Image key={index} source={{ uri }} style={styles.certImage} />
-                  ))}
+                  {(isEditing ? certifications : userData?.certifications || []).map((uri: string, index: number) => (
+                  <TouchableOpacity key={index} onPress={() => setSelectedImage(uri)}>
+                    <Image source={{ uri }} style={styles.certImage} />
+                  </TouchableOpacity>
+                ))}
                 </View>
               )}
 
-              {isOwnProfile && (
+              {isOwnProfile && isEditing && (
                 <TouchableOpacity style={styles.uploadButton} onPress={handlePickCertification}>
                   <Text style={styles.uploadText}>Upload Certification</Text>
                 </TouchableOpacity>
               )}
-            </View>)}
+            </View>
+          )}
+
 
           </>
         ) : (
@@ -612,13 +632,48 @@ const ProfilePage = () => {
             ) : (
               <View style={styles.postGrid}>
                 {userPosts.map((uri, index) => (
-                  <Image key={index} source={{ uri }} style={styles.postImage} />
+                  <TouchableOpacity key={index} onPress={() => setSelectedImage(uri)}>
+                    <Image source={{ uri }} style={styles.postImage} />
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
           </>
         )}
       </ScrollView>
+
+      {/* Uploading Overlay */}
+      {uploading && (
+        <View style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.4)",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 999
+        }}>
+          <ActivityIndicator size="large" color="#DDB771" />
+          <Text style={{ color: "#fff", marginTop: 10 }}>Uploading...</Text>
+        </View>
+      )}
+
+      {selectedImage && (
+      <Modal visible transparent onRequestClose={() => setSelectedImage(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 50, right: 20, zIndex: 1 }}
+            onPress={() => setSelectedImage(null)}
+          >
+            <Text style={{ color: '#fff', fontSize: 24 }}>✕</Text>
+          </TouchableOpacity>
+          <Image source={{ uri: selectedImage }} style={{ width: '90%', height: '70%', resizeMode: 'contain' }} />
+        </View>
+      </Modal>
+    )}
+
     </LinearGradient>
   );
 };
