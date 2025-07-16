@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +20,8 @@
         "backgroundColor": "#ffffff"
       },
       "googleServicesFile": "./google-services.json",
-      "package": "com.tagpuanph.tagpuan"
+      "package": "com.tagpuanph.tagpuan",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
@@ -52,6 +56,9 @@
       "eas": {
         "projectId": "a5b0ee61-493e-46d8-8851-c30de68209e2"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a5b0ee61-493e-46d8-8851-c30de68209e2"
     }
   }
 }

@@ -14,9 +14,10 @@ import { router } from "expo-router";
 import theme from "../constants/theme";
 import { auth, db } from "@/firebaseConfig";
 import { collection, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams } from 'expo-router';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 const ProfilePage = () => {
   const [showMore, setShowMore] = useState(false);
@@ -46,6 +47,18 @@ const ProfilePage = () => {
     { id: 'pickup', name: 'Pickup' },
     { id: 'delivery', name: 'Delivery' },
   ];
+
+  const uploadImageAsync = async (uri: string, path: string) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+
+    const storage = getStorage();
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, blob);
+
+    const downloadURL = await getDownloadURL(storageRef);
+    return downloadURL;
+  };
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -142,62 +155,56 @@ const ProfilePage = () => {
   };
 
   const handlePickImage = async () => {
-    if (userId) return; // Only allow logged-in user to upload
+    if (userId) return;
+
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-      if (result.canceled) return;
-      if (result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        const newPostUri = file.uri;
-        const updatedPosts = [newPostUri, ...userPosts];
+      if (result.canceled || !result.assets?.length) return;
 
-        setUserPosts(updatedPosts);
+      const file = result.assets[0];
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error("User UID is undefined.");
 
-        try {
-          const uid = auth.currentUser?.uid;
-          if (!uid) throw new Error("User UID is undefined.");
+      const fileName = `posts/${uid}/${Date.now()}_${file.name}`;
+      const downloadURL = await uploadImageAsync(file.uri, fileName);
+      const updatedPosts = [downloadURL, ...userPosts];
 
-          const userRef = doc(db, "users", uid);
-          await updateDoc(userRef, { posts: updatedPosts });
-        } catch (error) {
-          console.error("Failed to update posts:", error);
-        }
-      }
+      setUserPosts(updatedPosts);
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, { posts: updatedPosts });
     } catch (error) {
-      console.error("Error selecting file:", error);
+      console.error("Error uploading post image:", error);
     }
   };
+
 
   const handlePickCertification = async () => {
-    if (userId) return; // Only allow logged-in user to upload
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-      if (result.canceled) return;
-      if (result.assets && result.assets.length > 0) {
-        if (certifications.length >= 5) {
-          alert("Maximum of 5 certifications allowed.");
-          return;
-        }
-        const file = result.assets[0];
-        const newUri = file.uri;
-        const updatedCerts = [...certifications, newUri];
+  if (userId) return;
 
-        setCertifications(updatedCerts);
+  try {
+    const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
+    if (result.canceled || !result.assets?.length) return;
 
-        try {
-          const uid = auth.currentUser?.uid;
-          if (!uid) throw new Error("User UID is undefined.");
-
-          const userRef = doc(db, "users", uid);
-          await updateDoc(userRef, { certifications: updatedCerts });
-        } catch (error) {
-          console.error("Failed to update certifications:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Error selecting file:", error);
+    if (certifications.length >= 5) {
+      alert("Maximum of 5 certifications allowed.");
+      return;
     }
-  };
+
+    const file = result.assets[0];
+    const uid = auth.currentUser?.uid;
+    if (!uid) throw new Error("User UID is undefined.");
+
+    const fileName = `certifications/${uid}/${Date.now()}_${file.name}`;
+    const downloadURL = await uploadImageAsync(file.uri, fileName);
+    const updatedCerts = [...certifications, downloadURL];
+
+    setCertifications(updatedCerts);
+    const userRef = doc(db, "users", uid);
+    await updateDoc(userRef, { certifications: updatedCerts });
+  } catch (error) {
+    console.error("Error uploading certification:", error);
+  }
+};
 
   if (loadingUser) {
     return (
@@ -239,16 +246,19 @@ const ProfilePage = () => {
             style={styles.uploadButton}
             onPress={async () => {
               const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-              if (result.canceled) return;
-              if (result.assets && result.assets.length > 0) {
+              if (result.canceled || !result.assets?.length) return;
+
               const file = result.assets[0];
+              const uid = auth.currentUser?.uid;
+              if (!uid) return;
+
+              const fileName = `profile_pictures/${uid}_${Date.now()}_${file.name}`;
+              const downloadURL = await uploadImageAsync(file.uri, fileName);
+
               setEditedData({
                 ...editedData,
-                profile_picture: file.uri,
-                profile_picture_name: file.name ?? "upload.jpg",
-                profile_picture_type: file.mimeType ?? "image/jpeg",
+                profile_picture: downloadURL
               });
-              }
             }}
             >
             <Text style={styles.uploadText}>Change Photo</Text>
