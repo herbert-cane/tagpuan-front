@@ -15,6 +15,7 @@ import theme from "../constants/theme";
 import { auth, db } from "@/firebaseConfig";
 import { collection, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams } from 'expo-router';
 
 const ProfilePage = () => {
@@ -142,58 +143,59 @@ const ProfilePage = () => {
 
   const handlePickImage = async () => {
     if (userId) return; // Only allow logged-in user to upload
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
+      if (result.canceled) return;
+      if (result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        const newPostUri = file.uri;
+        const updatedPosts = [newPostUri, ...userPosts];
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      const newUri = result.assets[0].uri;
-      const updatedPosts = [newUri, ...userPosts];
+        setUserPosts(updatedPosts);
 
-      setUserPosts(updatedPosts);
+        try {
+          const uid = auth.currentUser?.uid;
+          if (!uid) throw new Error("User UID is undefined.");
 
-      try {
-        const uid = auth.currentUser?.uid;
-        if (!uid) throw new Error("User UID is undefined.");
-
-        const userRef = doc(db, "users", uid);
-        await updateDoc(userRef, { posts: updatedPosts });
-      } catch (error) {
-        console.error("Failed to update posts:", error);
+          const userRef = doc(db, "users", uid);
+          await updateDoc(userRef, { posts: updatedPosts });
+        } catch (error) {
+          console.error("Failed to update posts:", error);
+        }
       }
+    } catch (error) {
+      console.error("Error selecting file:", error);
     }
   };
 
   const handlePickCertification = async () => {
     if (userId) return; // Only allow logged-in user to upload
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 1,
-    });
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
+      if (result.canceled) return;
+      if (result.assets && result.assets.length > 0) {
+        if (certifications.length >= 5) {
+          alert("Maximum of 5 certifications allowed.");
+          return;
+        }
+        const file = result.assets[0];
+        const newUri = file.uri;
+        const updatedCerts = [...certifications, newUri];
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      if (certifications.length >= 5) {
-        alert("Maximum of 5 certifications allowed.");
-        return;
+        setCertifications(updatedCerts);
+
+        try {
+          const uid = auth.currentUser?.uid;
+          if (!uid) throw new Error("User UID is undefined.");
+
+          const userRef = doc(db, "users", uid);
+          await updateDoc(userRef, { certifications: updatedCerts });
+        } catch (error) {
+          console.error("Failed to update certifications:", error);
+        }
       }
-
-      const newUri = result.assets[0].uri;
-      const updatedCerts = [...certifications, newUri];
-
-      setCertifications(updatedCerts);
-
-      try {
-        const uid = auth.currentUser?.uid;
-        if (!uid) throw new Error("User UID is undefined.");
-
-        const userRef = doc(db, "users", uid);
-        await updateDoc(userRef, { certifications: updatedCerts });
-      } catch (error) {
-        console.error("Failed to update certifications:", error);
-      }
+    } catch (error) {
+      console.error("Error selecting file:", error);
     }
   };
 
@@ -233,18 +235,24 @@ const ProfilePage = () => {
         style={styles.profileImage}
           />
           {isOwnProfile && isEditing && (
-          <TouchableOpacity style={styles.uploadButton} onPress={async () => {
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsEditing: true,
-              quality: 1,
-            });
-            if (!result.canceled && result.assets?.[0]?.uri) {
-              setEditedData({ ...editedData, profile_picture: result.assets[0].uri });
-            }
-          }}>
+            <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={async () => {
+              const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
+              if (result.canceled) return;
+              if (result.assets && result.assets.length > 0) {
+              const file = result.assets[0];
+              setEditedData({
+                ...editedData,
+                profile_picture: file.uri,
+                profile_picture_name: file.name ?? "upload.jpg",
+                profile_picture_type: file.mimeType ?? "image/jpeg",
+              });
+              }
+            }}
+            >
             <Text style={styles.uploadText}>Change Photo</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
           )}
         </View>
         <View>
