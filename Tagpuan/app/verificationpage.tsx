@@ -6,6 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import theme from '../constants/theme';
 import { auth } from '@/firebaseConfig';
 
+// ✅ IMPORT ADMIN COMPONENT
+import PriceAdmin from '../components/PriceChecker/PriceAdmin';
+
 type Applicant = {
   id: string;
   name: string;
@@ -50,6 +53,9 @@ export default function VerificationPage() {
   const [activeTab, setActiveTab] = useState<'account' | 'item'>('account');
   const [applicantsList, setApplicantsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ NEW: State for Price Admin Modal
+  const [showPriceAdmin, setShowPriceAdmin] = useState(false);
 
   const deliveryModes = [
     { id: 'pickup', name: 'Pickup' },
@@ -153,6 +159,14 @@ export default function VerificationPage() {
           <Text style={styles.backText}>{"<"}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ✅ PRICE ADMIN BUTTON (Only visible here) */}
+      <TouchableOpacity 
+        style={styles.adminToolButton} 
+        onPress={() => setShowPriceAdmin(true)}
+      >
+        <Text style={styles.adminToolText}>🛠️ Manage Market Prices</Text>
+      </TouchableOpacity>
 
       {/* Applicants Section */}
       <Text style={styles.sectionTitle}>Applicants</Text>
@@ -300,6 +314,24 @@ export default function VerificationPage() {
           </>
         )}
       </ScrollView>
+
+      {/* ✅ ADMIN MODAL: Contains the Price Editor */}
+      <Modal
+        visible={showPriceAdmin}
+        animationType="slide"
+        onRequestClose={() => setShowPriceAdmin(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#073B3A' }}>
+            <TouchableOpacity 
+                style={styles.modalCloseButton} 
+                onPress={() => setShowPriceAdmin(false)}
+            >
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Close Admin</Text>
+            </TouchableOpacity>
+            {/* The component you created earlier */}
+            <PriceAdmin /> 
+        </View>
+      </Modal>
 
       <StatusBar style="auto" />
     </LinearGradient>
@@ -517,5 +549,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#073B3A',
+  },
+  // ✅ NEW Styles for Admin Button
+  adminToolButton: {
+    backgroundColor: 'rgba(221, 183, 113, 0.15)', // Transparent Gold
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DDB771'
+  },
+  adminToolText: {
+    color: '#DDB771',
+    fontWeight: 'bold',
+    fontSize: 14,
+    fontFamily: "NovaSquare-Regular",
+  },
+  modalCloseButton: {
+    padding: 20,
+    alignItems: 'flex-end',
+    backgroundColor: '#073B3A'
   }
 });

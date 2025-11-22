@@ -1,45 +1,32 @@
-import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, StyleSheet, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useNewsfeed } from './NewsFeed/UseNewsFeed';
-import { PostCard } from './NewsFeed/PostCard';
-import { CreatePost } from './NewsFeed/CreatePost';
-import { User } from './NewsFeed/NewsFeedtypes';
-import { DatabaseService } from './NewsFeed/DatabaseService';
-import { mockPosts, mockUsers } from './NewsFeed/NewsFeedData';
+import React from 'react';
+import { 
+  FlatList, 
+  View, 
+  Text, 
+  StyleSheet, 
+  RefreshControl, 
+  ActivityIndicator,
+  TouchableOpacity 
+} from 'react-native';
+
+// ✅ UPDATED IMPORTS
+import { useNewsfeed, FeedFilter } from '../components/NewsFeed/UseNewsFeed';
+import { PostCard } from '../components/NewsFeed/PostCard';
+import { CreatePost } from '../components/NewsFeed/CreatePost';
+import { User } from '../components/NewsFeed/NewsFeedtypes';
 
 interface NewsfeedProps {
   currentUser: User;
 }
 
 export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
-  const [initialized, setInitialized] = useState(false);
-  const [initError, setInitError] = useState<string | null>(null);
-
-  // Initialize data only once
-  useEffect(() => {
-    const initializeData = async () => {
-      if (!initialized) {
-        try {
-          console.log('🔄 Initializing newsfeed data...');
-          DatabaseService.initializeWithMockData(mockPosts, mockUsers);
-          setInitialized(true);
-          setInitError(null);
-          console.log('✅ Newsfeed data initialized successfully');
-        } catch (error) {
-          console.error('❌ Failed to initialize newsfeed data:', error);
-          setInitError('Failed to load newsfeed data');
-        }
-      }
-    };
-
-    initializeData();
-  }, [initialized]);
-
   const {
     posts,
     loading,
     refreshing,
     hasMore,
+    activeFilter, // Get active filter
+    setFilter,    // Get setter
     loadPosts,
     addReaction,
     createPost,
@@ -47,7 +34,7 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
   } = useNewsfeed(currentUser.id);
 
   const renderFooter = () => {
-    if (!hasMore) return null;
+    if (!loading || refreshing) return null;
     return (
       <View style={styles.footer}>
         <ActivityIndicator size="small" color="#1877f2" />
@@ -56,47 +43,58 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
     );
   };
 
-  // Show initialization error
-  if (initError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>❌ {initError}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={() => setInitialized(false)}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  // Show loading until data is initialized AND loaded
-  if (!initialized || (loading && posts.length === 0)) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1877f2" />
-        <Text style={styles.loadingText}>
-          {!initialized ? 'Initializing newsfeed...' : 'Loading posts...'}
-        </Text>
-      </View>
-    );
-  }
-
-  // Show empty state if no posts
-  if (posts.length === 0 && initialized && !loading) {
+  const renderEmptyComponent = () => {
+    if (loading) return null;
     return (
       <View style={styles.centered}>
         <Text style={styles.emptyText}>No posts yet</Text>
-        <Text style={styles.emptySubtext}>Be the first to share something!</Text>
+        <Text style={styles.emptySubtext}>
+          {activeFilter === 'friends' 
+            ? "Add some friends to see their posts!" 
+            : "Be the first to share something!"}
+        </Text>
+      </View>
+    );
+  };
+
+  // ✅ Custom Tab Component
+  const FeedFilterTabs = () => (
+    <View style={styles.tabsContainer}>
+      <TouchableOpacity 
+        style={[styles.tab, activeFilter === 'all' && styles.activeTab]} 
+        onPress={() => setFilter('all')}
+      >
+        <Text style={[styles.tabText, activeFilter === 'all' && styles.activeTabText]}>
+          All
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={[styles.tab, activeFilter === 'friends' && styles.activeTab]} 
+        onPress={() => setFilter('friends')}
+      >
+        <Text style={[styles.tabText, activeFilter === 'friends' && styles.activeTabText]}>
+          Friends
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Initial Load Spinner
+  if (loading && posts.length === 0 && !refreshing) {
+     return (
+      <View style={styles.container}>
+        <FeedFilterTabs />
+        <View style={styles.fullCenter}>
+          <ActivityIndicator size="large" color="#1877f2" />
+          <Text style={styles.loadingText}>Loading feed...</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <CreatePost currentUser={currentUser} onCreatePost={createPost} />
-      
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
@@ -107,6 +105,17 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
             onReaction={addReaction}
           />
         )}
+        
+        ListHeaderComponent={
+          <View style={styles.headerContainer}>
+            {/* ✅ Tabs at the top */}
+            <FeedFilterTabs />
+            <CreatePost currentUser={currentUser} onCreatePost={createPost} />
+          </View>
+        }
+
+        ListEmptyComponent={renderEmptyComponent}
+
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -115,6 +124,7 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
             tintColor="#1877f2"
           />
         }
+        
         onEndReached={() => {
           if (!loading && hasMore) {
             loadPosts();
@@ -137,23 +147,52 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 20,
   },
-  centered: {
+  headerContainer: {
+    marginBottom: 10,
+  },
+  // ✅ Tab Styles
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    padding: 10,
+    marginBottom: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  tab: {
+    marginRight: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#f0f2f5',
+  },
+  activeTab: {
+    backgroundColor: '#e7f3ff',
+  },
+  tabText: {
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#1877f2',
+  },
+  fullCenter: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+  },
+  centered: {
+    padding: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#e74c3c',
-    textAlign: 'center',
-    marginBottom: 16,
   },
   emptyText: {
     fontSize: 18,
@@ -176,17 +215,5 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 14,
     color: '#666',
-  },
-  retryButton: {
-    backgroundColor: '#1877f2',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 6,
-    marginTop: 12,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

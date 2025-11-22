@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
-import { PriceManager } from './PriceChecker/PriceManager';
-import { PriceItem, Category, TrendInfo, CompactPriceCheckerProps } from './PriceChecker/PriceTypes';
+import { PriceManager } from '../components/PriceChecker/PriceManager';
+import { PriceItem, Category, TrendInfo, CompactPriceCheckerProps } from '../components/PriceChecker/PriceTypes';
 import { FontAwesome } from '@expo/vector-icons';
 
 const CompactPriceChecker: React.FC<CompactPriceCheckerProps> = ({ 
@@ -19,13 +20,29 @@ const CompactPriceChecker: React.FC<CompactPriceCheckerProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  // ✅ NEW: State for Async Data
+  const [prices, setPrices] = useState<PriceItem[]>([]);
+  const [region, setRegion] = useState<string>('');
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
-  const prices = useMemo((): PriceItem[] => {
-    if (searchQuery.trim()) {
-      return PriceManager.searchCommodities(searchQuery);
+  // ✅ NEW: Fetch Data Effect
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      // Debounce logic could go here, but for simplicity we fetch directly
+      const data = await PriceManager.fetchPrices(selectedCategory, searchQuery);
+      setPrices(data.prices);
+      setRegion(data.region);
+      setLastUpdated(data.lastUpdated);
+      setLoading(false);
+    };
+
+    if (isVisible) {
+        loadData();
     }
-    return PriceManager.getPrices(selectedCategory);
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, isVisible]);
 
   const getTrendInfo = (trend: 'increasing' | 'decreasing' | 'stable'): TrendInfo => {
     switch (trend) {
@@ -124,26 +141,33 @@ const CompactPriceChecker: React.FC<CompactPriceCheckerProps> = ({
         {/* Results Info */}
         <View style={styles.resultsInfo}>
           <Text style={styles.resultsText}>
-            {prices.length} items • {PriceManager.getRegion()} • Updated: {PriceManager.getLastUpdated()}
+            {prices.length} items • {region} • Updated: {lastUpdated}
           </Text>
         </View>
 
-        {/* Price List */}
-        <FlatList
-          data={prices}
-          renderItem={renderPriceItem}
-          keyExtractor={(item: PriceItem) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No commodities found</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Try a different search or category
-              </Text>
+        {/* ✅ Loading State */}
+        {loading ? (
+            <View style={styles.loaderContainer}>
+                <ActivityIndicator size="large" color="#DDB771" />
             </View>
-          }
-        />
+        ) : (
+            /* Price List */
+            <FlatList
+            data={prices}
+            renderItem={renderPriceItem}
+            keyExtractor={(item: PriceItem) => item.id.toString()}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+                <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No commodities found</Text>
+                <Text style={styles.emptyStateSubtext}>
+                    Try a different search or category
+                </Text>
+                </View>
+            }
+            />
+        )}
       </View>
     </Modal>
   );
@@ -154,6 +178,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B6E4F',
     paddingTop: 60,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   header: {
     flexDirection: 'row',
@@ -199,6 +228,7 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     paddingHorizontal: 15,
     paddingVertical: 10,
+    maxHeight: 60, // Prevent it from taking too much space
   },
   categoryButton: {
     flexDirection: 'row',

@@ -8,10 +8,13 @@ import {
   StyleSheet,
   Alert,
   Modal,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { User } from './NewsFeedtypes';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 interface CreatePostProps {
   currentUser: User;
@@ -22,16 +25,73 @@ export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onCreatePos
   const [content, setContent] = useState('');
   const [image, setImage] = useState<string>('');
   const [showModal, setShowModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleCreatePost = () => {
+  // 1. Pick Image from Gallery
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert("Permission Required", "You need to allow access to your photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+      selectionLimit: 1, // ✅ Explicitly limit to 1
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
+  // 2. Helper: Upload to Firebase Storage
+  const uploadImageToFirebase = async (uri: string): Promise<string | null> => {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const storage = getStorage();
+      const filename = `posts/${currentUser.id}/${Date.now()}.jpg`;
+      const storageRef = ref(storage, filename);
+
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    } catch (error) {
+      console.error("Upload failed:", error);
+      Alert.alert("Error", "Failed to upload image.");
+      return null;
+    }
+  };
+
+  // 3. Handle Post Creation
+  const handleCreatePost = async () => {
     if (!content.trim()) {
       Alert.alert('Error', 'Please write something to post');
       return;
     }
 
-    onCreatePost(content, image || undefined);
+    setIsUploading(true);
+    let finalImageUrl = image;
+
+    if (image && !image.startsWith('http')) {
+      const uploadedUrl = await uploadImageToFirebase(image);
+      if (!uploadedUrl) {
+        setIsUploading(false);
+        return; 
+      }
+      finalImageUrl = uploadedUrl;
+    }
+
+    onCreatePost(content, finalImageUrl || undefined);
+    
     setContent('');
     setImage('');
+    setIsUploading(false);
     setShowModal(false);
   };
 
@@ -91,7 +151,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onCreatePos
           />
 
           {/* Image Preview */}
-          {image && (
+          {image ? (
             <View style={styles.imagePreviewContainer}>
               <Image source={{ uri: image }} style={styles.imagePreview} />
               <TouchableOpacity 
@@ -101,45 +161,54 @@ export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onCreatePos
                 <FontAwesome name="times" size={16} color="white" />
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
 
-          {/* Add Image Section */}
-          <View style={styles.addImageSection}>
-            <Text style={styles.sectionTitle}>Add to your post</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.imageOptions}>
-                <TouchableOpacity 
-                  style={styles.imageOption}
-                  onPress={() => setImage('')}
-                >
-                  <FontAwesome name="picture-o" size={20} color="#45bd62" />
-                  <Text style={styles.imageOptionText}>No Image</Text>
-                </TouchableOpacity>
-                
-                {presetImages.map((img, index) => (
+          {/* Add Image Section - ✅ HIDDEN IF IMAGE EXISTS */}
+          {!image && (
+            <View style={styles.addImageSection}>
+              <Text style={styles.sectionTitle}>Add to your post</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.imageOptions}>
                   <TouchableOpacity 
-                    key={index}
                     style={styles.imageOption}
-                    onPress={() => setImage(img)}
+                    onPress={pickImage}
                   >
-                    <Image source={{ uri: img }} style={styles.presetImage} />
-                    <Text style={styles.imageOptionText}>Image {index + 1}</Text>
+                    <View style={[styles.iconCircle, { backgroundColor: '#e7f3ff' }]}>
+                      <Ionicons name="images" size={24} color="#1877f2" />
+                    </View>
+                    <Text style={styles.imageOptionText}>Gallery</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
+
+                  {/* Presets */}
+                  {presetImages.map((img, index) => (
+                    <TouchableOpacity 
+                      key={index}
+                      style={styles.imageOption}
+                      onPress={() => setImage(img)}
+                    >
+                      <Image source={{ uri: img }} style={styles.presetImage} />
+                      <Text style={styles.imageOptionText}>Preset {index + 1}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
 
           {/* Post Button */}
           <TouchableOpacity 
             style={[
               styles.postButton,
-              !content.trim() && styles.postButtonDisabled
+              (!content.trim() || isUploading) && styles.postButtonDisabled
             ]}
             onPress={handleCreatePost}
-            disabled={!content.trim()}
+            disabled={!content.trim() || isUploading}
           >
-            <Text style={styles.postButtonText}>Post</Text>
+            {isUploading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.postButtonText}>Post</Text>
+            )}
           </TouchableOpacity>
         </View>
       </Modal>
@@ -175,7 +244,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: 'white',
-    paddingTop: 60,
+    paddingTop: 20, 
   },
   modalHeader: {
     flexDirection: 'row',
@@ -218,7 +287,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: '#333',
-    maxHeight: 200,
+    minHeight: 100,
   },
   imagePreviewContainer: {
     position: 'relative',
@@ -255,10 +324,19 @@ const styles = StyleSheet.create({
   },
   imageOptions: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   imageOption: {
     alignItems: 'center',
     marginRight: 20,
+  },
+  iconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 5,
   },
   presetImage: {
     width: 80,

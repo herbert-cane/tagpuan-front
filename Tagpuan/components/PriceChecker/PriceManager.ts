@@ -1,27 +1,55 @@
-import { manualPriceData, categories } from './PriceData';
-import { PriceItem, Category } from './PriceTypes';
+import { auth } from "@/firebaseConfig";
+import { PriceItem, PriceData, Category } from './PriceTypes';
+
+// Configuration
+const API_URL = "http://10.74.1.53:8080"; 
+
+// ✅ FIX: Explicitly type the return promise as HeadersInit
+const getAuthHeader = async (): Promise<HeadersInit> => {
+  const token = await auth.currentUser?.getIdToken();
+  return token ? { "Authorization": `Bearer ${token}` } : {};
+};
+
+// Hardcoded Categories (Static data is fine here)
+export const categories: Category[] = [
+  { id: 'all', name: 'All', icon: '🧺' },
+  { id: 'vegetables', name: 'Vegetables', icon: '🥦' },
+  { id: 'fruits', name: 'Fruits', icon: '🍎' },
+  { id: 'meat', name: 'Meat & Poultry', icon: '🥩' },
+  { id: 'fish', name: 'Fish & Seafood', icon: '🐟' },
+  { id: 'rice', name: 'Rice & Grains', icon: '🍚' },
+  { id: 'spices', name: 'Spices', icon: '🌶️' },
+];
 
 export const PriceManager = {
-  getPrices: (category: string = 'all'): PriceItem[] => {
-    if (category === 'all') {
-      return manualPriceData.prices;
+  /**
+   * Fetch prices from backend
+   */
+  fetchPrices: async (category: string = 'all', searchQuery: string = ''): Promise<PriceData> => {
+    try {
+      const headers = await getAuthHeader();
+      
+      // Build URL: /prices?category=meat&query=pork
+      let url = `${API_URL}/prices?`;
+      if (category !== 'all') url += `category=${category}&`;
+      if (searchQuery) url += `query=${encodeURIComponent(searchQuery)}`;
+
+      const res = await fetch(url, { headers });
+      
+      if (!res.ok) throw new Error("Failed to fetch");
+      
+      const data = await res.json();
+      
+      return {
+        prices: data.prices || [],
+        region: data.region || "Unknown Region",
+        lastUpdated: data.lastUpdated || "Just now"
+      };
+    } catch (error) {
+      console.error("PriceManager Error:", error);
+      // Fallback empty state
+      return { prices: [], region: "Error", lastUpdated: "-" };
     }
-    return manualPriceData.prices.filter(item => item.category === category);
-  },
-
-  searchCommodities: (searchText: string): PriceItem[] => {
-    if (!searchText.trim()) return [];
-    return manualPriceData.prices.filter(item => 
-      item.commodity.toLowerCase().includes(searchText.toLowerCase())
-    );
-  },
-
-  getLastUpdated: (): string => {
-    return manualPriceData.lastUpdated;
-  },
-
-  getRegion: (): string => {
-    return manualPriceData.region;
   },
 
   getCategories: (): Category[] => {

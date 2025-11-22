@@ -1,14 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Post, User } from './NewsFeedtypesnewsfeedTypes';
+import { useState, useEffect, useCallback } from 'react';
+import { Post, Reaction } from './NewsFeedtypes';
 import { DatabaseService } from './DatabaseService';
+
+// ✅ Filter Type
+export type FeedFilter = 'all' | 'friends';
 
 export const useNewsfeed = (currentUserId: string) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  
+  // ✅ NEW: Track active filter
+  const [activeFilter, setActiveFilter] = useState<FeedFilter>('all');
 
-  const loadPosts = async (isRefreshing: boolean = false) => {
+  const loadPosts = useCallback(async (isRefreshing: boolean = false) => {
+    if (!isRefreshing && loading && posts.length > 0) return;
+
     if (isRefreshing) {
       setRefreshing(true);
     } else {
@@ -16,85 +24,102 @@ export const useNewsfeed = (currentUserId: string) => {
     }
 
     try {
-      const newPosts = await DatabaseService.getPosts(10);
+      const lastPostId = !isRefreshing && posts.length > 0 ? posts[posts.length - 1].id : undefined;
+
+      // ✅ Pass activeFilter to the service
+      const newPosts = await DatabaseService.getPosts(10, lastPostId, activeFilter);
       
       if (isRefreshing) {
         setPosts(newPosts);
       } else {
-        setPosts(prev => [...prev, ...newPosts]);
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id));
+          return [...prev, ...uniqueNewPosts];
+        });
       }
       
-      setHasMore(newPosts.length === 10);
+      setHasMore(newPosts.length >= 10);
     } catch (error) {
       console.error('Error loading posts:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  }, [posts, loading, activeFilter]); // Re-create when filter changes
+
+  // ✅ NEW: Function to switch tabs
+  const setFilter = (filter: FeedFilter) => {
+    if (filter === activeFilter) return;
+    
+    setActiveFilter(filter);
+    setPosts([]); // Clear current posts
+    setLoading(true); // Show loading spinner immediately
+    setHasMore(true); // Reset pagination
   };
 
-  const addReaction = async (postId: string, type: 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry') => {
+  // Trigger load when filter changes
+  useEffect(() => {
+    loadPosts(true);
+  }, [activeFilter]);
+
+  const addReaction = async (postId: string, type: Reaction['type']) => {
+    setPosts(prev => prev.map(post => 
+      post.id === postId 
+        ? {
+            ...post,
+            reactions: [
+              ...post.reactions.filter(r => r.userId !== currentUserId),
+              { userId: currentUserId, type }
+            ]
+          }
+        : post
+    ));
     try {
       await DatabaseService.addReaction(postId, currentUserId, type);
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? {
-              ...post,
-              reactions: [
-                ...post.reactions.filter(r => r.userId !== currentUserId),
-                { userId: currentUserId, type }
-              ]
-            }
-          : post
-      ));
     } catch (error) {
-      console.error('Error adding reaction:', error);
+      removeReaction(postId); 
     }
   };
 
   const removeReaction = async (postId: string) => {
+    setPosts(prev => prev.map(post => 
+      post.id === postId 
+        ? {
+            ...post,
+            reactions: post.reactions.filter(r => r.userId !== currentUserId)
+          }
+        : post
+    ));
     try {
       await DatabaseService.removeReaction(postId, currentUserId);
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? {
-              ...post,
-              reactions: post.reactions.filter(r => r.userId !== currentUserId)
-            }
-          : post
-      ));
     } catch (error) {
       console.error('Error removing reaction:', error);
     }
   };
 
-  const createPost = async (content: string, image?: string, user?: User) => {
-    if (!user) return;
-
+  const createPost = async (content: string, image?: string) => {
     try {
       const newPost = await DatabaseService.createPost({
-        userId: currentUserId,
-        user,
-        content,
-        image
+          content,
+          mediaUrl: image
       });
-
-      setPosts(prev => [newPost, ...prev]);
+      if (newPost) {
+        setPosts(prev => [newPost, ...prev]);
+      }
     } catch (error) {
       console.error('Error creating post:', error);
     }
   };
-
-  useEffect(() => {
-    loadPosts();
-  }, []);
 
   return {
     posts,
     loading,
     refreshing,
     hasMore,
-    loadPosts,
+    activeFilter, // Expose current filter
+    setFilter,    // Expose switcher
+    loadPosts, 
     addReaction,
     removeReaction,
     createPost,
