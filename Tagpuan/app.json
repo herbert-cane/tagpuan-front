@@ -4,7 +4,7 @@
     "slug": "Tagpuan",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Tagpuan_Logo.png",
     "scheme": "tagpuan",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,7 +16,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/Tagpuan_Logo.png",
         "backgroundColor": "#ffffff"
       },
       "googleServicesFile": "./google-services.json",

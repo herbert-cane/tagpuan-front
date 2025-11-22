@@ -6,12 +6,27 @@ import { FontAwesome } from '@expo/vector-icons';
 import theme from '../constants/theme';
 import { useEffect, useState } from 'react';
 import { auth, db } from '../firebaseConfig';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { ActivityIndicator } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
+import CompactPriceChecker from './PriceChecker';
+import { Newsfeed } from './NewsFeed'; // Import the newsfeed
+import { User as NewsfeedUser } from '../components/NewsFeed/NewsFeedtypes'; // Import the newsfeed user type
 
-const recentExports = [
+interface RecentExport {
+  id: string;
+  description: string;
+  date: string;
+}
+
+interface UserData {
+  role?: string;
+  profile_picture?: string;
+  [key: string]: any;
+}
+
+const recentExports: RecentExport[] = [
   { id: '1', description: 'Contracted a deal with Juan Dela Cruz', date: '6 days ago' },
   { id: '2', description: 'Bought Sardines from Gina Villamoso', date: '11 days ago' },
   { id: '3', description: 'Rina Espiritu canceled the order of Onions', date: '19 days ago' },
@@ -19,19 +34,18 @@ const recentExports = [
 ];
 
 export default function Homepage() {
-
-  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL
-  const [showMore, setShowMore] = useState(false);
-
-  const [userData, setUserData] = useState<Record<string, any> | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL;
+  const [showMore, setShowMore] = useState<boolean>(false);
+  const [showPriceChecker, setShowPriceChecker] = useState<boolean>(false);
+  const [showNewsfeed, setShowNewsfeed] = useState<boolean>(false); // Add newsfeed state
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loadingUser, setLoadingUser] = useState<boolean>(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         try {
           const token = await user.getIdToken();
-
           const response = await fetch(`${FIREBASE_API}/user/getDetails`, {
             method: 'GET',
             headers: {
@@ -41,11 +55,9 @@ export default function Homepage() {
           });
 
           if (!response.ok) throw new Error('Failed to fetch user details');
-
-          const userData = await response.json();
+          const userData: UserData = await response.json();
           setUserData(userData);
           setLoadingUser(false);
-
         } catch (err) {
           console.error("Error fetching user data:", err);
           setTimeout(() => setLoadingUser(false), 500);
@@ -57,12 +69,10 @@ export default function Homepage() {
       }
     });
 
-    return () => unsubscribe(); // unsubscribe from onAuthStateChanged
+    return () => unsubscribe();
   }, []);
 
-
-
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     const user = auth.currentUser;
     if (!user) return;
 
@@ -83,7 +93,7 @@ export default function Homepage() {
   };
 
   useEffect(() => {
-    const setOnline = async () => {
+    const setOnline = async (): Promise<void> => {
       const user = auth.currentUser;
       if (user) {
         await setDoc(doc(db, "users", user.uid), {
@@ -92,14 +102,116 @@ export default function Homepage() {
         }, { merge: true });
       }
     };
-
     setOnline();
   }, []);
+
+  // Convert your user data to newsfeed user format
+  const getNewsfeedUser = (): NewsfeedUser => {
+    return {
+      id: auth.currentUser?.uid || 'current-user',
+      name: userData?.name || 'User',
+      avatar: userData?.profile_picture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+      role: userData?.role || 'Farmer'
+    };
+  };
+
+  const renderRoleSpecificButtons = (): JSX.Element | null => {
+    const role = (userData?.role || "").trim().toLowerCase();
+
+    switch (role) {
+      case "contractor":
+        return (
+          <>
+            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
+              <FontAwesome name="search" size={28} color="#FFFFFF" />
+              <Text style={styles.navText}>FINDER</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/requestpage', params: { type: 'bidding' } })}>
+              <FontAwesome name="file-text" size={28} color="#FFFFFF" />
+              <Text style={styles.navText}>REQUEST</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case "farmer":
+        return (
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
+            <FontAwesome name="gavel" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>BID</Text>
+          </TouchableOpacity>
+        );
+
+      case "admin":
+        return (
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
+            <FontAwesome name="certificate" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>VERIFY</Text>
+          </TouchableOpacity>
+        );
+
+      case "vendor":
+        return (
+          <TouchableOpacity style={styles.navItem} onPress={() => router.push('/itemselling')}>
+            <FontAwesome name="shopping-cart" size={28} color="#FFFFFF" />
+            <Text style={styles.navText}>SELL</Text>
+          </TouchableOpacity>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const renderHiddenButtons = (): JSX.Element | null => {
+    const role = (userData?.role || "").trim().toLowerCase();
+
+    if (role === "farmer" || role === "vendor") {
+      return (
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}
+        >
+          <FontAwesome name="user" size={28} color="#FFFFFF" />
+          <Text style={styles.navText}>PROFILE</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (role === "contractor") {
+      return (
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/biddingdashboard')}>
+          <FontAwesome name="file" size={28} color="#FFFFFF" />
+          <Text style={styles.navText}>CONTRACTS</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return null;
+  };
 
   if (loadingUser || !userData) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#DDB771" />
+      </View>
+    );
+  }
+
+  // If newsfeed is shown, display only the newsfeed
+  if (showNewsfeed) {
+    return (
+      <View style={styles.fullScreen}>
+        {/* Newsfeed Header */}
+        <View style={styles.newsfeedHeader}>
+          <TouchableOpacity onPress={() => setShowNewsfeed(false)} style={styles.backButton}>
+            <FontAwesome name="arrow-left" size={24} color="#DDB771" />
+          </TouchableOpacity>
+          <Text style={styles.newsfeedTitle}>Community Feed</Text>
+          <View style={styles.placeholder} />
+        </View>
+        
+        {/* Newsfeed Component */}
+        <Newsfeed currentUser={getNewsfeedUser()} />
       </View>
     );
   }
@@ -121,10 +233,9 @@ export default function Homepage() {
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>HOMEPAGE</Text>
-            <TouchableOpacity style={styles.backButton} onPress={() => { 
-              handleLogout();}}>
+          <TouchableOpacity style={styles.backButton} onPress={handleLogout}>
             <Text style={styles.backText}>{"Logout"}</Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -137,101 +248,40 @@ export default function Homepage() {
 
       {/* Navigation Icons */}
       <View style={styles.navContainer}>
-      {(() => {
-        const role = (userData?.role || "").trim().toLowerCase();
+        {renderRoleSpecificButtons()}
 
-        switch (role) {
-          case "contractor":
-            return (
-              <>
-                <TouchableOpacity style={styles.navItem} onPress={() => router.push('/swipepage')}>
-                  <FontAwesome name="search" size={28} color="#FFFFFF" />
-                  <Text style={styles.navText}>FINDER</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem} onPress={() => router.push({ pathname: '/requestpage', params: { type: 'bidding' } })}>
-                  <FontAwesome name="file-text" size={28} color="#FFFFFF" />
-                  <Text style={styles.navText}>REQUEST</Text>
-                </TouchableOpacity>
-              </>
-            );
+        {/* NEWSFEED BUTTON */}
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowNewsfeed(true)}>
+          <FontAwesome name="newspaper-o" size={28} color="#FFFFFF" />
+          <Text style={styles.navText}>FEED</Text>
+        </TouchableOpacity>
 
-          case "farmer":
-            return (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/questpage')}>
-                <FontAwesome name="gavel" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>BID</Text>
-              </TouchableOpacity>
-            );
+        {/* PRICE CHECKER BUTTON */}
+        <TouchableOpacity style={styles.navItem} onPress={() => setShowPriceChecker(true)}>
+          <FontAwesome name="line-chart" size={28} color="#FFFFFF" />
+          <Text style={styles.navText}>PRICES</Text>
+        </TouchableOpacity>
 
-          case "admin":
-            return (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/verificationpage')}>
-                <FontAwesome name="certificate" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>VERIFY</Text>
-              </TouchableOpacity>
-            );
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}> 
+          <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
+          <Text style={styles.navText}>DASHBOARD</Text>
+        </TouchableOpacity>
 
-          case "vendor":
-            return (
-              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/itemselling')}>
-                <FontAwesome name="shopping-cart" size={28} color="#FFFFFF" />
-                <Text style={styles.navText}>SELL</Text>
-              </TouchableOpacity>
-            );
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
+          <FontAwesome name="comments" size={28} color="#FFFFFF" />
+          <Text style={styles.navText}>MESSAGE</Text>
+        </TouchableOpacity>
+      </View>
 
-          default:
-            return null;
-        }
-      })()}
-
-      {/* <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}> */}
-      <TouchableOpacity style={styles.navItem} onPress={() => alert('This feature is coming soon!')}>
-        <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
-        <Text style={styles.navText}>DASHBOARD</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
-        <FontAwesome name="comments" size={28} color="#FFFFFF" />
-        <Text style={styles.navText}>MESSAGE</Text>
-      </TouchableOpacity>
-    </View>
-
-      {/* Hidden Buttons & See More Button Together */}
+      {/* Hidden Buttons & See More Button */}
       <View>
         {showMore && (
           <View style={styles.hiddenButtonsContainer}>
-            {/* <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}> */}
-            <TouchableOpacity style={styles.navItem} onPress={() => alert('This feature is coming soon!')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}> 
               <FontAwesome name="shopping-basket" size={28} color="#FFFFFF" />
               <Text style={styles.navText}>MARKET</Text>
             </TouchableOpacity>
-
-            {(() => {
-              const role = (userData?.role || "").trim().toLowerCase();
-
-              if (role === "farmer" || role === "vendor") {
-                return (
-                  <TouchableOpacity
-                    style={styles.navItem}
-                    onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'details' } })}
-                  >
-                    <FontAwesome name="user" size={28} color="#FFFFFF" />
-                    <Text style={styles.navText}>PROFILE</Text>
-                  </TouchableOpacity>
-                );
-              }
-
-              if (role === "contractor") {
-                return (
-                  <TouchableOpacity style={styles.navItem} onPress={() => router.push('/biddingdashboard')}>
-                    <FontAwesome name="file" size={28} color="#FFFFFF" />
-                    <Text style={styles.navText}>CONTRACTS</Text>
-                  </TouchableOpacity>
-                );
-              }
-
-              return null;
-            })()}
+            {renderHiddenButtons()}
           </View>
         )}
 
@@ -255,8 +305,8 @@ export default function Homepage() {
 
         <FlatList
           data={recentExports}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+          keyExtractor={(item: RecentExport) => item.id}
+          renderItem={({ item }: { item: RecentExport }) => (
             <View style={styles.exportItem}>
               <Text style={styles.exportDescription}>{item.description}</Text>
               <Text style={styles.exportDate}>{item.date}</Text>
@@ -264,17 +314,47 @@ export default function Homepage() {
           )}
         />
       </View>
+
+      {/* Price Checker Modal */}
+      <CompactPriceChecker 
+        isVisible={showPriceChecker}
+        onClose={() => setShowPriceChecker(false)}
+      />
+
       <StatusBar style="auto" />
     </LinearGradient>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 50,
     paddingHorizontal: 20,
+  },
+  fullScreen: {
+    flex: 1,
+    backgroundColor: '#f0f2f5',
+  },
+  newsfeedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#0B6E4F',
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDB771',
+  },
+  newsfeedTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#DDB771',
+    fontFamily: 'NovaSquare-Regular',
+  },
+  placeholder: {
+    width: 24, // For balance
   },
   header: {
     flexDirection: 'row',
@@ -283,12 +363,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    position: "absolute",
-    right: 20,
-    top: 0,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 5,
   },
   backText: {
     color: "#DDB771",
@@ -333,14 +408,6 @@ const styles = StyleSheet.create({
     color: '#DDB771',
     fontFamily: theme.fonts.regular,
     fontSize: 16,
-  },
-  seeMoreButton: {
-    marginTop: 20,
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderColor: '#DDB771',
   },
   seeMoreContainer: {
     flexDirection: 'row',
