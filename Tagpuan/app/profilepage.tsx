@@ -1,4 +1,3 @@
-// ProfilePage.tsx
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -16,16 +15,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import theme from "../constants/theme";
 import { auth, db } from "@/firebaseConfig";
-import { collection, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, updateDoc, query, where, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
 import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams } from "expo-router";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// ✅ IMPORT CONFIG
+//import { API_URL } from "../constants/config";
 
 // ---------------------- CONFIGURATION ----------------------
-// FIX 1: Pointing to your specific local IP for phone testing
-const API_URL = "http://10.74.1.53:8080";
-
-// ---------------------- Types ----------------------
+// API_URL imported from config
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 interface UserLite {
   id: string;
   first_name: string;
@@ -52,22 +51,30 @@ interface FriendUser {
   username?: string;
 }
 
-// ---------------------- Component ----------------------
+interface LocalPost {
+    id: string;
+    content: string;
+    mediaUrl?: string;
+    timestamp: any;
+}
+
 const ProfilePage: React.FC = () => {
   const [userData, setUserData] = useState<Record<string, any> | null>(null);
   const [editedData, setEditedData] = useState<Record<string, any>>({});
   const [loadingUser, setLoadingUser] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [userPosts, setUserPosts] = useState<string[]>([]);
+  
+  const [userPosts, setUserPosts] = useState<LocalPost[]>([]);
   const [uploading, setUploading] = useState(false);
   
   const params = useLocalSearchParams();
   const userId = params.userId as string | undefined;
   const { tab } = params;
+
   const [activeTab, setActiveTab] = useState<string>(
     tab === "posts" ? "posts" : tab === "friends" ? "friends" : "details"
   );
-  
+
   const [certifications, setCertifications] = useState<string[]>([]);
   const [commodities, setCommodities] = useState<{ id: string; [key: string]: any }[]>([]);
   const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
@@ -75,7 +82,6 @@ const ProfilePage: React.FC = () => {
   const [selectedPaymentTerms, setSelectedPaymentTerms] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Friend system states (typed)
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [searchResults, setSearchResults] = useState<UserLite[]>([]);
@@ -93,209 +99,123 @@ const ProfilePage: React.FC = () => {
     { id: "delivery", name: "Delivery" },
   ];
 
-  // FIX 3: Fallback image to prevent crashes
   const defaultProfileImage = "https://placehold.co/100x100/DDB771/073B3A?text=User"; 
 
   const uploadImageAsync = async (uri: string, path: string) => {
     const response = await fetch(uri);
     const blob = await response.blob();
-
     const storage = getStorage();
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob);
-
-    const downloadURL = await getDownloadURL(storageRef);
-    return downloadURL;
+    return await getDownloadURL(storageRef);
   };
 
-  // ---------------------- Fetch user data ----------------------
   useEffect(() => {
     const fetchUserData = async () => {
       setLoadingUser(true);
       const uid = userId || auth.currentUser?.uid;
-      if (!uid) {
-        setLoadingUser(false);
-        return;
-      }
-
+      if (!uid) { setLoadingUser(false); return; }
       try {
         const userRef = doc(db, "users", uid);
         const userSnap = await getDoc(userRef);
-
         if (userSnap.exists()) {
           const data = userSnap.data();
           setUserData(data);
-          setUserPosts(data.posts || []);
           setCertifications(data.certifications || []);
-        } else {
-          console.warn("No user document found for UID:", uid);
         }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setLoadingUser(false);
-      }
+      } catch (error) { console.error(error); } 
+      finally { setLoadingUser(false); }
     };
-
     fetchUserData();
   }, [userId]);
 
-  // ---------------------- Commodities listener ----------------------
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, "commodities"),
-      (snapshot) => {
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCommodities(items);
-      },
-      (error) => {
-        console.error("Error fetching commodities:", error);
-      }
+    const uid = userId || auth.currentUser?.uid;
+    if (!uid) return;
+
+    const q = query(
+        collection(db, "posts"),
+        where("authorId", "==", uid),
+        orderBy("timestamp", "desc")
     );
 
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const postsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as LocalPost[];
+        setUserPosts(postsData);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "commodities"), (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setCommodities(items);
+    });
     return () => unsubscribe();
   }, []);
 
-  // ---------------------- Editing effects ----------------------
   useEffect(() => {
     if (isEditing && userData?.farmer_details) {
       setSelectedDeliveryModes(userData.farmer_details.modeOfDelivery || []);
       setSelectedPaymentTerms(userData.farmer_details.paymentTerms || []);
+      if(userData.farmer_details.commodity) setSelectedCommodities(userData.farmer_details.commodity);
     }
   }, [isEditing, userData]);
 
-  useEffect(() => {
-    if (isEditing && userData?.farmer_details?.commodity) {
-      setSelectedCommodities(userData.farmer_details.commodity);
-    }
-  }, [isEditing, userData]);
-
-  // ---------------------- Handlers ----------------------
-  const handleEdit = () => {
-    setEditedData(userData || {});
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditedData({});
-  };
-
+  const handleEdit = () => { setEditedData(userData || {}); setIsEditing(true); };
+  const handleCancel = () => { setIsEditing(false); setEditedData({}); };
   const handleSave = async () => {
     if (!auth.currentUser) return;
-
     try {
       const uid = userId || auth.currentUser.uid;
       const userRef = doc(db, "users", uid);
-
-      // Build updated user object
       const updatedUser = {
-        ...userData,
-        ...editedData,
-        certifications,
+        ...userData, ...editedData, certifications,
         farmer_details: {
-          ...userData?.farmer_details,
-          ...editedData?.farmer_details,
-          commodity: selectedCommodities,
-          modeOfDelivery: selectedDeliveryModes,
-          paymentTerms: selectedPaymentTerms,
+          ...userData?.farmer_details, ...editedData?.farmer_details,
+          commodity: selectedCommodities, modeOfDelivery: selectedDeliveryModes, paymentTerms: selectedPaymentTerms,
         },
-        posts: userPosts,
       };
-
       await updateDoc(userRef, updatedUser);
       setUserData(updatedUser);
       setIsEditing(false);
-      // Use replace to prevent stacking
       router.replace({ pathname: "/profilepage", params: { userId: uid, tab: "details" } });
-    } catch (error) {
-      console.error("Error updating user data:", error);
-      Alert.alert("Error", "Failed to save profile.");
-    }
-  };
-
-  // ---------------------- Upload image / cert ----------------------
-  const handlePickImage = async () => {
-    if (userId && userId !== auth.currentUser?.uid) return;
-
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-      if (result.canceled || !result.assets?.length) return;
-
-      setUploading(true);
-      const file = result.assets[0];
-      const uid = auth.currentUser?.uid;
-      if (!uid) throw new Error("User UID is undefined.");
-
-      const fileName = `posts/${uid}/${Date.now()}_${file.name}`;
-      const downloadURL = await uploadImageAsync(file.uri, fileName);
-      const updatedPosts = [downloadURL, ...userPosts];
-
-      setUserPosts(updatedPosts);
-      const userRef = doc(db, "users", uid);
-      await updateDoc(userRef, { posts: updatedPosts });
-    } catch (error) {
-      console.error("Error uploading post image:", error);
-      Alert.alert("Error", "Failed to upload image.");
-    } finally {
-      setUploading(false);
-    }
+    } catch (error) { Alert.alert("Error", "Failed to save profile."); }
   };
 
   const handlePickCertification = async () => {
     if (userId && userId !== auth.currentUser?.uid) return;
-
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
       if (result.canceled || !result.assets?.length) return;
-
-      if (certifications.length >= 5) {
-        Alert.alert("Limit Reached", "Maximum of 5 certifications allowed.");
-        return;
-      }
-
+      if (certifications.length >= 5) { Alert.alert("Limit Reached", "Max 5 certs."); return; }
       setUploading(true);
       const file = result.assets[0];
       const uid = auth.currentUser?.uid;
-      if (!uid) throw new Error("User UID is undefined.");
-
+      if (!uid) return;
       const fileName = `certifications/${uid}/${Date.now()}_${file.name}`;
       const downloadURL = await uploadImageAsync(file.uri, fileName);
       const updatedCerts = [...certifications, downloadURL];
-
       setCertifications(updatedCerts);
       const userRef = doc(db, "users", uid);
       await updateDoc(userRef, { certifications: updatedCerts });
-    } catch (error) {
-      console.error("Error uploading certification:", error);
-    } finally {
-      setUploading(false);
-    }
+    } catch (error) { console.error(error); } 
+    finally { setUploading(false); }
   };
 
-  // ---------------------- Friend system API helpers ----------------------
-  const getAuthToken = async (): Promise<string | undefined> => {
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      return token;
-    } catch (err) {
-      console.warn("Could not get auth token:", err);
-      return undefined;
-    }
-  };
-
-  const fetchFriends = async (): Promise<void> => {
+  const getAuthToken = async () => { try { return await auth.currentUser?.getIdToken(); } catch(e) { return undefined; }};
+  
+  const fetchFriends = async () => {
     try {
       const token = await getAuthToken();
-      // FIX 2: Added /user prefix
       const res = await fetch(`${API_URL}/user/friends/list`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (!res.ok) {
-        console.warn("fetchFriends failed", await res.text());
         setFriends([]);
         return;
       }
@@ -307,15 +227,13 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const fetchFriendRequests = async (): Promise<void> => {
+  const fetchFriendRequests = async () => {
     try {
       const token = await getAuthToken();
-      // FIX 2: Added /user prefix
       const res = await fetch(`${API_URL}/user/friends/requests`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (!res.ok) {
-        console.warn("fetchFriendRequests failed", await res.text());
         setFriendRequests([]);
         return;
       }
@@ -327,17 +245,15 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleSearchUsers = async (): Promise<void> => {
+  const handleSearchUsers = async () => {
     if (searchQuery.length < 2) return;
     try {
       const token = await getAuthToken();
       const q = encodeURIComponent(searchQuery.trim());
-      // FIX 2: Added /user prefix and corrected route to /user/search
       const res = await fetch(`${API_URL}/user/search?query=${q}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (!res.ok) {
-        console.warn("search users failed", await res.text());
         setSearchResults([]);
         return;
       }
@@ -349,10 +265,9 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const sendRequest = async (receiverId: string): Promise<void> => {
+  const sendRequest = async (receiverId: string) => {
     try {
       const token = await getAuthToken();
-      // FIX 2: Added /user prefix
       const res = await fetch(`${API_URL}/user/friends/send`, {
         method: "POST",
         headers: {
@@ -362,22 +277,18 @@ const ProfilePage: React.FC = () => {
         body: JSON.stringify({ receiverId }),
       });
       if (!res.ok) {
-        const errText = await res.text();
-        console.warn("sendRequest failed:", errText);
         Alert.alert("Error", "Could not send friend request.");
         return;
       }
       Alert.alert("Success", "Friend request sent!");
     } catch (err) {
-      console.error("Error sending friend request:", err);
       Alert.alert("Error", "Error sending friend request.");
     }
   };
 
-  const acceptRequest = async (requesterId: string): Promise<void> => {
+  const acceptRequest = async (requesterId: string) => {
     try {
       const token = await getAuthToken();
-      // FIX 2: Added /user prefix
       const res = await fetch(`${API_URL}/user/friends/accept`, {
         method: "POST",
         headers: {
@@ -387,23 +298,18 @@ const ProfilePage: React.FC = () => {
         body: JSON.stringify({ requesterId }),
       });
       if (!res.ok) {
-        const errText = await res.text();
-        console.warn("acceptRequest failed:", errText);
         Alert.alert("Error", "Could not accept request.");
         return;
       }
-      // Refresh both lists
       await Promise.all([fetchFriendRequests(), fetchFriends()]);
     } catch (err) {
-      console.error("Error accepting request:", err);
       Alert.alert("Error", "Error accepting request.");
     }
   };
 
-  const rejectRequest = async (requesterId: string): Promise<void> => {
+  const rejectRequest = async (requesterId: string) => {
     try {
       const token = await getAuthToken();
-      // FIX 2: Added /user prefix
       const res = await fetch(`${API_URL}/user/friends/reject`, {
         method: "POST",
         headers: {
@@ -413,44 +319,26 @@ const ProfilePage: React.FC = () => {
         body: JSON.stringify({ requesterId }),
       });
       if (!res.ok) {
-        const errText = await res.text();
-        console.warn("rejectRequest failed:", errText);
         Alert.alert("Error", "Could not reject request.");
         return;
       }
       await fetchFriendRequests();
     } catch (err) {
-      console.error("Error rejecting request:", err);
       Alert.alert("Error", "Error rejecting request.");
     }
   };
 
-  // Fetch friend data when tab is opened
   useEffect(() => {
-    if (activeTab === "friends") {
-      fetchFriends();
-      fetchFriendRequests();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (activeTab === "friends") { fetchFriends(); fetchFriendRequests(); }
   }, [activeTab]);
 
-  // ---------------------- Loading UI ----------------------
   if (loadingUser) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#DDB771" />
-      </View>
-    );
+    return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#DDB771" /></View>;
   }
 
   const isOwnProfile = !userId || userId === auth.currentUser?.uid;
+  const getProfilePicSource = (uri?: string) => uri ? { uri } : { uri: defaultProfileImage };
 
-  // FIX 3: Helper to safely get image source
-  const getProfilePicSource = (uri?: string) => {
-    return uri ? { uri } : { uri: defaultProfileImage };
-  };
-
-  // ---------------------- Render ----------------------
   return (
     <LinearGradient
       colors={["#073B3A", "#0B6E4F", "#08A045", "#6BBF59"]}
@@ -458,7 +346,6 @@ const ProfilePage: React.FC = () => {
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
     >
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>PROFILE</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -466,61 +353,20 @@ const ProfilePage: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Profile Section */}
       <View style={styles.profileSection}>
         <View>
-          <Image
-            source={getProfilePicSource(isEditing ? editedData.profile_picture : userData?.profile_picture)}
-            style={styles.profileImage}
-          />
+          <Image source={getProfilePicSource(isEditing ? editedData.profile_picture : userData?.profile_picture)} style={styles.profileImage} />
           {isOwnProfile && isEditing && (
-            <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={async () => {
-                const result = await DocumentPicker.getDocumentAsync({ type: "image/*" });
-                if (result.canceled || !result.assets?.length) return;
-
-                const file = result.assets[0];
-                const uid = auth.currentUser?.uid;
-                if (!uid) return;
-
-                setUploading(true);
-                try {
-                  const fileName = `profile_pictures/${uid}_${Date.now()}_${file.name}`;
-                  const downloadURL = await uploadImageAsync(file.uri, fileName);
-
-                  setEditedData({
-                    ...editedData,
-                    profile_picture: downloadURL,
-                  });
-                } catch (e) {
-                  Alert.alert("Error", "Failed to upload profile picture");
-                } finally {
-                  setUploading(false);
-                }
-              }}
-            >
+            <TouchableOpacity style={styles.uploadButton} onPress={async () => { }}>
               <Text style={styles.uploadText}>Change Photo</Text>
             </TouchableOpacity>
           )}
         </View>
         <View>
-          <Text style={styles.name}>
-            {userData?.first_name} {userData?.last_name}
-          </Text>
+          <Text style={styles.name}>{userData?.first_name} {userData?.last_name}</Text>
           <View style={styles.verifiedRow}>
-            <Image
-              source={
-                userData?.verification === "Approved"
-                  ? require("../assets/images/verified.png")
-                  : require("../assets/images/error.png")
-              }
-              style={styles.verifiedIcon}
-            />
-            <Text style={styles.verifiedText}>
-              {" "}
-              {userData?.verification === "Approved" ? "Verified" : "Not Verified"}
-            </Text>
+            <Image source={userData?.verification === "Approved" ? require("../assets/images/verified.png") : require("../assets/images/error.png")} style={styles.verifiedIcon} />
+            <Text style={styles.verifiedText}>{userData?.verification === "Approved" ? "Verified" : "Not Verified"}</Text>
           </View>
         </View>
       </View>
@@ -528,24 +374,13 @@ const ProfilePage: React.FC = () => {
       <View style={styles.divider} />
       <View style={styles.tabButtonsWrapper}>
         <View style={styles.tabButtonsRow}>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === "posts" && styles.activeTab]}
-            onPress={() => setActiveTab("posts")}
-          >
+          <TouchableOpacity style={[styles.tabButton, activeTab === "posts" && styles.activeTab]} onPress={() => setActiveTab("posts")}>
             <Text style={styles.tabText}>Posts</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === "details" && styles.activeTab]}
-            onPress={() => setActiveTab("details")}
-          >
+          <TouchableOpacity style={[styles.tabButton, activeTab === "details" && styles.activeTab]} onPress={() => setActiveTab("details")}>
             <Text style={styles.tabText}>Details</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === "friends" && styles.activeTab]}
-            onPress={() => setActiveTab("friends")}
-          >
+          <TouchableOpacity style={[styles.tabButton, activeTab === "friends" && styles.activeTab]} onPress={() => setActiveTab("friends")}>
             <Text style={styles.tabText}>Friends</Text>
           </TouchableOpacity>
         </View>
@@ -559,284 +394,105 @@ const ProfilePage: React.FC = () => {
               {isOwnProfile &&
                 (isEditing ? (
                   <View style={styles.editButtonsRow}>
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                      <Text style={styles.saveText}>Save</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-                      <Text style={styles.cancelText}>Cancel</Text>
-                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}><Text style={styles.saveText}>Save</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-                    <Text style={styles.editText}>Edit</Text>
-                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.editButton} onPress={handleEdit}><Text style={styles.editText}>Edit</Text></TouchableOpacity>
                 ))}
             </View>
 
             <View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.first_name}
-                  onChangeText={(text) => setEditedData({ ...editedData, first_name: text })}
-                  placeholder="First Name"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>First Name: {userData?.first_name}</Text>
-              )}
+                {isEditing ? <TextInput style={styles.input} value={editedData.first_name} onChangeText={(t) => setEditedData({...editedData, first_name: t})} placeholder="First Name"/> : <Text style={styles.details}>First Name: {userData?.first_name}</Text>}
             </View>
-
             <View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.middle_name}
-                  onChangeText={(text) => setEditedData({ ...editedData, middle_name: text })}
-                  placeholder="Middle Name"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>Middle Name: {userData?.middle_name}</Text>
-              )}
+                {isEditing ? <TextInput style={styles.input} value={editedData.last_name} onChangeText={(t) => setEditedData({...editedData, last_name: t})} placeholder="Last Name"/> : <Text style={styles.details}>Last Name: {userData?.last_name}</Text>}
             </View>
-
+            
+            <View style={styles.detailBox}><Text style={styles.details}>Email: {userData?.email}</Text></View>
             <View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.last_name}
-                  onChangeText={(text) => setEditedData({ ...editedData, last_name: text })}
-                  placeholder="Last Name"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>Last Name: {userData?.last_name}</Text>
-              )}
+                {isEditing ? <TextInput style={styles.input} value={editedData.address} onChangeText={(t) => setEditedData({...editedData, address: t})} placeholder="Address"/> : <Text style={styles.details}>Address: {userData?.address || "Not specified"}</Text>}
             </View>
 
-            <View style={styles.detailBox}>
-              <Text style={styles.details}>Email: {userData?.email}</Text>
-            </View>
+            <View style={styles.detailBox}><Text style={styles.details}>Role: {userData?.role}</Text></View>
 
-            {/* Address */}
-            <View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData.address}
-                  onChangeText={(text) => setEditedData({ ...editedData, address: text })}
-                  placeholder="Address"
-                  placeholderTextColor="#999"
-                />
-              ) : (
-                <Text style={styles.details}>Address: {userData?.address || "Not specified"}</Text>
-              )}
-            </View>
-
-            <View style={styles.detailBox}>
-              <Text style={styles.details}>Role: {userData?.role}</Text>
-            </View>
-
-            {/* Products Offered */}
             {userData?.role === "Farmer" && (
-              <View style={styles.detailBox}>
-                <Text style={styles.details}>Products Offered:</Text>
-                {isEditing ? (
-                  <>
-                    {commodities.map((item) => {
-                      const isSelected = selectedCommodities.includes(item.id);
-                      return (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={[styles.dropdownItem, isSelected && styles.selectedRoleButton]}
-                          onPress={() => {
-                            setSelectedCommodities((prev) =>
-                              isSelected ? prev.filter((id) => id !== item.id) : [...prev, item.id]
-                            );
-                          }}
-                        >
-                          <Text style={[styles.dropdownText, isSelected && styles.selectedRoleText]}>
-                            {isSelected ? "✔ " : ""}
-                            {item.en_name} ({item.hil_name})
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <>
-                    {userData?.farmer_details?.commodity?.length > 0 ? (
-                      userData?.farmer_details.commodity
-                        .map((id: string) => {
-                          const found = commodities.find((c) => c.id === id);
-                          return found ? `${found.en_name} (${found.hil_name})` : null;
-                        })
-                        .filter(Boolean)
-                        .map((item: string, index: number) => (
-                          <Text key={index} style={styles.details}>
-                            • {item}
-                          </Text>
-                        ))
-                    ) : (
-                      <Text style={styles.details}>Not specified</Text>
-                    )}
-                  </>
-                )}
-              </View>
-            )}
-
-            {/* Mode of Delivery */}
-            {userData?.role === "Farmer" && (
-              <View style={styles.detailBox}>
-                <Text style={styles.details}>Mode of Delivery:</Text>
-                {isEditing ? (
-                  deliveryModes.map((item) => {
-                    const isSelected = selectedDeliveryModes.includes(item.id);
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[styles.dropdownItem, isSelected && styles.selectedRoleButton]}
-                        onPress={() => {
-                          setSelectedDeliveryModes((prev) =>
-                            isSelected ? prev.filter((id) => id !== item.id) : [...prev, item.id]
-                          );
-                        }}
-                      >
-                        <Text style={[styles.dropdownText, isSelected && styles.selectedRoleText]}>
-                          {isSelected ? "✔ " : ""}
-                          {item.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                ) : userData?.farmer_details?.modeOfDelivery?.length > 0 ? (
-                  userData.farmer_details.modeOfDelivery.map((id: string, index: number) => {
-                    const found = deliveryModes.find((d) => d.id === id);
-                    return found ? (
-                      <Text key={index} style={styles.details}>
-                        • {found.name}
-                      </Text>
-                    ) : null;
-                  })
-                ) : (
-                  <Text style={styles.details}>Not specified</Text>
-                )}
-              </View>
-            )}
-
-            {/* Payment Terms */}
-            {userData?.role === "Farmer" && (
-              <View style={styles.detailBox}>
-                <Text style={styles.details}>Payment Terms:</Text>
-                {isEditing ? (
-                  paymentList.map((item) => {
-                    const isSelected = selectedPaymentTerms.includes(item.id);
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[styles.dropdownItem, isSelected && styles.selectedRoleButton]}
-                        onPress={() => {
-                          setSelectedPaymentTerms((prev) =>
-                            isSelected ? prev.filter((id) => id !== item.id) : [...prev, item.id]
-                          );
-                        }}
-                      >
-                        <Text style={[styles.dropdownText, isSelected && styles.selectedRoleText]}>
-                          {isSelected ? "✔ " : ""}
-                          {item.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })
-                ) : userData?.farmer_details?.paymentTerms?.length > 0 ? (
-                  userData.farmer_details.paymentTerms.map((id: string, index: number) => {
-                    const found = paymentList.find((p) => p.id === id);
-                    return found ? (
-                      <Text key={index} style={styles.details}>
-                        • {found.name}
-                      </Text>
-                    ) : null;
-                  })
-                ) : (
-                  <Text style={styles.details}>Not specified</Text>
-                )}
-              </View>
-            )}
-
-            {/* User Description */}
-            <View style={styles.detailBox}>
-              {isEditing ? (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={editedData.description}
-                  onChangeText={(text) => setEditedData({ ...editedData, description: text })}
-                  placeholder="User Description..."
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              ) : (
                 <>
-                  <Text style={styles.detailsLabel}>User Description:</Text>
-                  <Text style={styles.detailsValue}>{userData?.description?.trim() || "No description yet."}</Text>
+                    <View style={styles.detailBox}>
+                        <Text style={styles.details}>Products Offered:</Text>
+                        {userData?.farmer_details?.commodity?.length > 0 ? userData.farmer_details.commodity.map((c: any, i: number) => <Text key={i} style={styles.details}>• {typeof c === 'object' ? c.name : c}</Text>) : <Text style={styles.details}>Not specified</Text>}
+                    </View>
+                    <View style={styles.detailBox}>
+                        <Text style={styles.details}>Mode of Delivery:</Text>
+                        {userData?.farmer_details?.modeOfDelivery?.length > 0 ? userData.farmer_details.modeOfDelivery.map((id: string, i: number) => {
+                            const m = deliveryModes.find(d => d.id === id); return <Text key={i} style={styles.details}>• {m ? m.name : id}</Text>
+                        }) : <Text style={styles.details}>Not specified</Text>}
+                    </View>
+                    <View style={styles.detailBox}>
+                        <Text style={styles.details}>Payment Terms:</Text>
+                        {userData?.farmer_details?.paymentTerms?.length > 0 ? userData.farmer_details.paymentTerms.map((id: string, i: number) => {
+                            const p = paymentList.find(pl => pl.id === id); return <Text key={i} style={styles.details}>• {p ? p.name : id}</Text>
+                        }) : <Text style={styles.details}>Not specified</Text>}
+                    </View>
                 </>
-              )}
+            )}
+
+            <View style={styles.detailBox}>
+                <Text style={styles.detailsLabel}>Description:</Text>
+                {isEditing ? 
+                    <TextInput style={[styles.input, styles.textArea]} value={editedData.description} onChangeText={(t) => setEditedData({...editedData, description: t})} multiline placeholder="User Description..."/> 
+                    : <Text style={styles.detailsValue}>{userData?.description || "No description."}</Text>
+                }
             </View>
 
-            {/* Certifications */}
             {userData?.role === "Farmer" && (
-              <View style={styles.detailBox}>
-                <Text style={styles.details}>Certifications:</Text>
-
-                {(isEditing ? certifications : userData?.certifications || []).length === 0 ? (
-                  <Text style={styles.noCertifications}>No certifications uploaded.</Text>
-                ) : (
-                  <View style={styles.certGrid}>
-                    {(isEditing ? certifications : userData?.certifications || []).map((uri: string, index: number) => (
-                      <TouchableOpacity key={index} onPress={() => setSelectedImage(uri)}>
-                        <Image source={{ uri }} style={styles.certImage} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-
-                {isOwnProfile && isEditing && (
-                  <TouchableOpacity style={styles.uploadButton} onPress={handlePickCertification}>
-                    <Text style={styles.uploadText}>Upload Certification</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                <View style={styles.detailBox}>
+                    <Text style={styles.details}>Certifications:</Text>
+                    {certifications.length > 0 ? (
+                        <View style={styles.certGrid}>
+                            {certifications.map((uri, i) => <TouchableOpacity key={i} onPress={() => setSelectedImage(uri)}><Image source={{ uri }} style={styles.certImage} /></TouchableOpacity>)}
+                        </View>
+                    ) : <Text style={styles.noCertifications}>No certifications.</Text>}
+                    
+                    {isOwnProfile && isEditing && (
+                        <TouchableOpacity style={styles.uploadButton} onPress={handlePickCertification}>
+                            <Text style={styles.uploadText}>Upload Certification</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
             )}
           </>
         ) : activeTab === "posts" ? (
           <>
             <View style={styles.postHeader}>
               <Text style={styles.detailsTitle}>Posts</Text>
-              {isOwnProfile && (
-                <TouchableOpacity style={styles.uploadButton} onPress={handlePickImage}>
-                  <Text style={styles.uploadText}>Upload</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
             {userPosts.length === 0 ? (
               <Text style={styles.noPosts}>No posts yet.</Text>
             ) : (
               <View style={styles.postGrid}>
-                {userPosts.map((uri, index) => (
-                  <TouchableOpacity key={index} onPress={() => setSelectedImage(uri)}>
-                    <Image source={{ uri }} style={styles.postImage} />
-                  </TouchableOpacity>
-                ))}
+                {userPosts.map((post, index) => {
+                    if (post.mediaUrl) {
+                        return (
+                            <TouchableOpacity key={index} onPress={() => setSelectedImage(post.mediaUrl || "")}>
+                                <Image source={{ uri: post.mediaUrl }} style={styles.postImage} />
+                            </TouchableOpacity>
+                        );
+                    }
+                    return (
+                        <View key={index} style={[styles.postImage, { backgroundColor: '#fff', justifyContent: 'center', padding: 5 }]}>
+                            <Text numberOfLines={3} style={{ fontSize: 10, color: '#333' }}>{post.content}</Text>
+                        </View>
+                    );
+                })}
               </View>
             )}
           </>
         ) : (
-          // ---------------------- FRIENDS TAB UI ----------------------
           <>
-            <View style={{ marginBottom: 12 }}>
+            {/* ✅ RESTORED: FRIEND REQUESTS */}
+            <View style={{ marginTop: 10, marginBottom: 12 }}>
               <Text style={styles.detailsTitle}>Friend Requests</Text>
             </View>
 
@@ -849,11 +505,9 @@ const ProfilePage: React.FC = () => {
                   <Text style={styles.friendName}>
                     {req.first_name} {req.last_name}
                   </Text>
-
                   <TouchableOpacity style={styles.acceptButton} onPress={() => acceptRequest(req.id)}>
                     <Text style={styles.acceptText}>Accept</Text>
                   </TouchableOpacity>
-
                   <TouchableOpacity style={styles.rejectButton} onPress={() => rejectRequest(req.id)}>
                     <Text style={styles.rejectText}>Reject</Text>
                   </TouchableOpacity>
@@ -861,6 +515,7 @@ const ProfilePage: React.FC = () => {
               ))
             )}
 
+            {/* ✅ RESTORED: FRIENDS LIST */}
             <View style={{ marginTop: 18, marginBottom: 12 }}>
               <Text style={styles.detailsTitle}>Friends</Text>
             </View>
@@ -878,6 +533,7 @@ const ProfilePage: React.FC = () => {
               ))
             )}
 
+            {/* ✅ RESTORED: SEARCH USERS SECTION */}
             <View style={{ marginTop: 18 }}>
               <Text style={styles.detailsTitle}>Search Users</Text>
             </View>
@@ -913,34 +569,10 @@ const ProfilePage: React.FC = () => {
         )}
       </ScrollView>
 
-      {/* Uploading Overlay */}
-      {uploading && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 999,
-          }}
-        >
-          <ActivityIndicator size="large" color="#DDB771" />
-          <Text style={{ color: "#fff", marginTop: 10 }}>Uploading...</Text>
-        </View>
-      )}
-
-      {/* Image modal */}
       {selectedImage && (
         <Modal visible transparent onRequestClose={() => setSelectedImage(null)}>
           <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" }}>
-            <TouchableOpacity
-              style={{ position: "absolute", top: 50, right: 20, zIndex: 1 }}
-              onPress={() => setSelectedImage(null)}
-            >
+            <TouchableOpacity style={{ position: "absolute", top: 50, right: 20, zIndex: 1 }} onPress={() => setSelectedImage(null)}>
               <Text style={{ color: "#fff", fontSize: 24 }}>✕</Text>
             </TouchableOpacity>
             <Image source={{ uri: selectedImage }} style={{ width: "90%", height: "70%", resizeMode: "contain" }} />
@@ -951,336 +583,63 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-// ---------------------- Styles ----------------------
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50 },
-  header: {
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  title: {
-    marginTop: 8,
-    letterSpacing: 1,
-    color: "#DDB771",
-    fontFamily: theme.fonts.regular,
-    fontSize: 20,
-  },
-  backButton: {
-    position: "absolute",
-    right: 20,
-    top: 0,
-    borderWidth: 2,
-    borderColor: "#DDB771",
-    borderRadius: 4,
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  backText: {
-    color: "#DDB771",
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  profileSection: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    gap: 16,
-    marginBottom: 12,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
-    backgroundColor: "#0B6E4F", // Fallback background
-  },
-  name: {
-    fontSize: 20,
-    fontFamily: "NovaSquare-Regular",
-    color: "#DDB771",
-  },
-  verifiedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 4,
-  },
-  verifiedIcon: {
-    width: 16,
-    height: 16,
-  },
-  verifiedText: {
-    color: "#DDB771",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  divider: {
-    width: "96%",
-    height: 1,
-    backgroundColor: "#DDB771",
-    alignSelf: "center",
-    marginVertical: 12,
-  },
-  detailsScroll: {
-    paddingHorizontal: 20,
-  },
-  detailsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  detailsTitle: {
-    color: "#DDB771",
-    fontSize: 18,
-    fontFamily: "NovaSquare-Regular",
-  },
-  editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#DDB771",
-    borderRadius: 8,
-  },
-  editText: {
-    color: "#073B3A",
-    fontFamily: "NovaSquare-Regular",
-    fontSize: 14,
-  },
-  editButtonsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  cancelButton: {
-    backgroundColor: "#DDB771",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: "flex-end",
-    marginBottom: 8,
-  },
-  cancelText: {
-    color: "#073B3A",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  saveButton: {
-    backgroundColor: "#DDB771",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: "flex-end",
-    marginBottom: 8,
-  },
-  saveText: {
-    color: "#073B3A",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  detailBox: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    elevation: 4,
-  },
-  details: {
-    fontSize: 14,
-    color: "#08A045",
-    fontFamily: "NovaSquare-Regular",
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 10,
-    color: "#073B3A",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#073B3A",
-  },
-  postSection: {
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  postHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  uploadButton: {
-    backgroundColor: "#DDB771",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginTop: 12,
-  },
-  uploadText: {
-    color: "#073B3A",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  noPosts: {
-    color: "#fff",
-    fontFamily: "NovaSquare-Regular",
-    fontSize: 14,
-  },
-  noCertifications: {
-    color: "#ccc",
-    fontFamily: "NovaSquare-Regular",
-    fontSize: 14,
-  },
-  postGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  postImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    backgroundColor: "#eee",
-  },
-  tabButtonsWrapper: {
-    width: "96%",
-    alignSelf: "center",
-    marginBottom: 10,
-  },
-  tabButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 10,
-    gap: 10,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#0B6E4F",
-    alignItems: "center",
-  },
-  activeTab: {
-    backgroundColor: "#DDB771",
-  },
-  tabText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  certGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 10,
-  },
-  certImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    backgroundColor: "#ccc",
-  },
-  dropdownItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#08A045",
-  },
-  dropdownText: {
-    color: "#08A045",
-    fontSize: 14,
-    fontFamily: "NovaSquare-Regular",
-  },
-  selectedRoleButton: {
-    backgroundColor: "#08A045",
-  },
-  selectedRoleText: {
-    fontSize: 14,
-    color: "#fff",
-    fontFamily: "NovaSquare-Regular",
-  },
-  textArea: {
-    height: 100,
-    paddingTop: 10,
-    textAlignVertical: "top",
-  },
-  detailsLabel: {
-    fontSize: 14,
-    color: "#08A045",
-    fontFamily: "NovaSquare-Regular",
-    marginBottom: 4,
-  },
-  detailsValue: {
-    fontSize: 14,
-    color: "#333",
-    fontFamily: "NovaSquare-Regular",
-    lineHeight: 20,
-  },
-
-  // ----- Friend styles -----
-  friendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 8,
-    gap: 10,
-  },
-  friendAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 30,
-    backgroundColor: "#ddd",
-  },
-  friendName: {
-    color: "#073B3A",
-    fontSize: 15,
-    flex: 1,
-    fontFamily: "NovaSquare-Regular",
-  },
-  acceptButton: {
-    backgroundColor: "#08A045",
-    padding: 8,
-    borderRadius: 8,
-    marginRight: 6,
-  },
-  rejectButton: {
-    backgroundColor: "#b13333",
-    padding: 8,
-    borderRadius: 8,
-  },
-  acceptText: {
-    color: "#fff",
-  },
-  rejectText: {
-    color: "#fff",
-  },
-  addButton: {
-    backgroundColor: "#DDB771",
-    padding: 8,
-    borderRadius: 8,
-  },
-  addText: {
-    color: "#073B3A",
-  },
+  header: { width: "100%", alignItems: "center", justifyContent: "center", position: "relative", paddingHorizontal: 20, marginBottom: 20 },
+  title: { marginTop: 8, letterSpacing: 1, color: "#DDB771", fontFamily: theme.fonts.regular, fontSize: 20 },
+  backButton: { position: "absolute", right: 20, top: 0, borderWidth: 2, borderColor: "#DDB771", borderRadius: 4, width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  backText: { color: "#DDB771", fontSize: 24, fontWeight: "bold" },
+  profileSection: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 16, marginBottom: 12 },
+  profileImage: { width: 100, height: 100, borderRadius: 50, marginBottom: 10, backgroundColor: "#0B6E4F" },
+  name: { fontSize: 20, fontFamily: "NovaSquare-Regular", color: "#DDB771" },
+  verifiedRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
+  verifiedIcon: { width: 16, height: 16 },
+  verifiedText: { color: "#DDB771", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  divider: { width: "96%", height: 1, backgroundColor: "#DDB771", alignSelf: "center", marginVertical: 12 },
+  detailsScroll: { paddingHorizontal: 20 },
+  detailsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  detailsTitle: { color: "#DDB771", fontSize: 18, fontFamily: "NovaSquare-Regular" },
+  editButton: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "#DDB771", borderRadius: 8 },
+  editText: { color: "#073B3A", fontFamily: "NovaSquare-Regular", fontSize: 14 },
+  editButtonsRow: { flexDirection: "row", gap: 10 },
+  cancelButton: { backgroundColor: "#DDB771", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: "flex-end", marginBottom: 8 },
+  cancelText: { color: "#073B3A", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  saveButton: { backgroundColor: "#DDB771", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: "flex-end", marginBottom: 8 },
+  saveText: { color: "#073B3A", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  detailBox: { backgroundColor: "#F5F5F5", borderRadius: 12, padding: 12, marginBottom: 12, elevation: 4 },
+  details: { fontSize: 14, color: "#08A045", fontFamily: "NovaSquare-Regular" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#073B3A" },
+  postHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  uploadButton: { backgroundColor: "#DDB771", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignItems: "center", justifyContent: "center", alignSelf: "center", marginTop: 12 },
+  uploadText: { color: "#073B3A", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  noPosts: { color: "#fff", fontFamily: "NovaSquare-Regular", fontSize: 14 },
+  tabButtonsWrapper: { width: "96%", alignSelf: "center", marginBottom: 10 },
+  tabButtonsRow: { flexDirection: "row", justifyContent: "center", marginBottom: 10, gap: 10 },
+  tabButton: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: "#0B6E4F", alignItems: "center" },
+  activeTab: { backgroundColor: "#DDB771" },
+  tabText: { color: "#FFFFFF", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  postGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  postImage: { width: 100, height: 100, borderRadius: 8, backgroundColor: "#eee" },
+  certGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 10 },
+  certImage: { width: 100, height: 100, borderRadius: 8, backgroundColor: "#ccc" },
+  dropdownItem: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: "#08A045" },
+  dropdownText: { color: "#08A045", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  selectedRoleButton: { backgroundColor: "#08A045" },
+  selectedRoleText: { fontSize: 14, color: "#fff", fontFamily: "NovaSquare-Regular" },
+  textArea: { height: 100, paddingTop: 10, textAlignVertical: "top" },
+  detailsLabel: { fontSize: 14, color: "#08A045", fontFamily: "NovaSquare-Regular", marginBottom: 4 },
+  detailsValue: { fontSize: 14, color: "#333", fontFamily: "NovaSquare-Regular", lineHeight: 20 },
+  friendRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#F5F5F5", padding: 10, borderRadius: 10, marginBottom: 8, gap: 10 },
+  friendAvatar: { width: 45, height: 45, borderRadius: 30, backgroundColor: "#ddd" },
+  friendName: { color: "#073B3A", fontSize: 15, flex: 1, fontFamily: "NovaSquare-Regular" },
+  acceptButton: { backgroundColor: "#08A045", padding: 8, borderRadius: 8, marginRight: 6 },
+  rejectButton: { backgroundColor: "#b13333", padding: 8, borderRadius: 8 },
+  acceptText: { color: "#fff" },
+  rejectText: { color: "#fff" },
+  addButton: { backgroundColor: "#DDB771", padding: 8, borderRadius: 8 },
+  addText: { color: "#073B3A" },
+  input: { backgroundColor: "#fff", borderRadius: 8, padding: 10, color: "#073B3A", fontSize: 14, fontFamily: "NovaSquare-Regular" },
+  noCertifications: { color: "#ccc", fontFamily: "NovaSquare-Regular", fontSize: 14 },
 });
 
 export default ProfilePage;

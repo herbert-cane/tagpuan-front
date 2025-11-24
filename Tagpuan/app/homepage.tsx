@@ -11,8 +11,16 @@ import { ActivityIndicator } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { onAuthStateChanged, User } from "firebase/auth";
 import CompactPriceChecker from './PriceChecker';
-import { Newsfeed } from './NewsFeed'; // Import the newsfeed
-import { User as NewsfeedUser } from '../components/NewsFeed/NewsFeedtypes'; // Import the newsfeed user type
+import { Newsfeed } from './NewsFeed';
+import { User as NewsfeedUser } from '../components/NewsFeed/NewsFeedtypes';
+
+// ✅ 1. ADD ADMOB IMPORTS
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+
+// ✅ 2. DEFINE AD UNIT ID
+// 🔴 IMPORTANT: Use TestIds.BANNER for development.
+// Replace 'ca-app-pub-xxxx/yyyy' with your REAL ad unit ID for production builds.
+const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-5509684377946762/3359482462';
 
 interface RecentExport {
   id: string;
@@ -37,7 +45,7 @@ export default function Homepage() {
   const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL;
   const [showMore, setShowMore] = useState<boolean>(false);
   const [showPriceChecker, setShowPriceChecker] = useState<boolean>(false);
-  const [showNewsfeed, setShowNewsfeed] = useState<boolean>(false); // Add newsfeed state
+  const [showNewsfeed, setShowNewsfeed] = useState<boolean>(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
 
@@ -209,7 +217,7 @@ export default function Homepage() {
           <Text style={styles.newsfeedTitle}>Community Feed</Text>
           <View style={styles.placeholder} />
         </View>
-        
+
         {/* Newsfeed Component */}
         <Newsfeed currentUser={getNewsfeedUser()} />
       </View>
@@ -241,7 +249,7 @@ export default function Homepage() {
 
       {/* Main Image */}
       <Image
-        source={require('../assets/images/main-image.png')}
+        source={require('../assets/images/TagpuanCover3.jpg')}
         style={styles.mainImage}
         resizeMode="cover"
       />
@@ -262,11 +270,7 @@ export default function Homepage() {
           <Text style={styles.navText}>PRICES</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/dashboard')}> 
-          <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
-          <Text style={styles.navText}>DASHBOARD</Text>
-        </TouchableOpacity>
-
+        {/* MESSAGE BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
           <FontAwesome name="comments" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>MESSAGE</Text>
@@ -277,11 +281,25 @@ export default function Homepage() {
       <View>
         {showMore && (
           <View style={styles.hiddenButtonsContainer}>
-            <TouchableOpacity style={styles.navItem} onPress={() => router.push('/farmermarketpage')}> 
+            {/* MARKET BUTTON - UPDATED WITH ALERT */}
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => Alert.alert("Notice", "Feature coming soon")}
+            >
               <FontAwesome name="shopping-basket" size={28} color="#FFFFFF" />
               <Text style={styles.navText}>MARKET</Text>
             </TouchableOpacity>
+
             {renderHiddenButtons()}
+
+            {/* DASHBOARD BUTTON - MOVED HERE & UPDATED WITH ALERT */}
+            <TouchableOpacity
+              style={styles.navItem}
+              onPress={() => Alert.alert("Notice", "Feature coming soon")}
+            >
+              <FontAwesome name="dashboard" size={28} color="#FFFFFF" />
+              <Text style={styles.navText}>DASHBOARD</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -316,10 +334,21 @@ export default function Homepage() {
       </View>
 
       {/* Price Checker Modal */}
-      <CompactPriceChecker 
+      <CompactPriceChecker
         isVisible={showPriceChecker}
         onClose={() => setShowPriceChecker(false)}
       />
+
+      {/* ✅ 3. IMPLEMENT BANNER AD AT BOTTOM */}
+      <View style={styles.bannerContainer}>
+        <BannerAd
+          unitId={adUnitId}
+          size={BannerAdSize.BANNER} // Standard small banner size (320x50)
+          requestOptions={{
+            requestNonPersonalizedAdsOnly: true,
+          }}
+        />
+      </View>
 
       <StatusBar style="auto" />
     </LinearGradient>
@@ -419,7 +448,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 10,
-  },  
+  },
   line: {
     flex: 1,
     height: 1,
@@ -430,9 +459,10 @@ const styles = StyleSheet.create({
     color: '#DDB771',
     fontFamily: theme.fonts.regular,
     fontSize: 14,
-  },  
+  },
   recentExportsContainer: {
     marginTop: 20,
+    flex: 1, // Added flex 1 here so the list takes available space, pushing ad to bottom
   },
   recentExportsHeader: {
     flexDirection: 'row',
@@ -451,7 +481,7 @@ const styles = StyleSheet.create({
     borderColor: '#DDB771',
     paddingVertical: 4,
     paddingHorizontal: 12,
-    borderRadius: 28, 
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -459,13 +489,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#DDB771',
     fontWeight: 'bold',
-  },  
+  },
   exportItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderColor: '#4F9D69', 
+    borderColor: '#4F9D69',
   },
   exportDescription: {
     color: '#FFFFFF',
@@ -484,5 +514,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#073B3A',
-  }
+  },
+  // ✅ 4. ADD BANNER STYLES
+  bannerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10, // Give it a little space from the list and the bottom edge
+  },
 });

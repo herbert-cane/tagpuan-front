@@ -16,7 +16,7 @@ import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
 
 // Configuration
-const API_URL = "http://10.74.1.53:8080"; 
+const API_URL = process.env.EXPO_PUBLIC_API_URL; 
 
 export default function PriceAdmin() {
   const [items, setItems] = useState<PriceItem[]>([]);

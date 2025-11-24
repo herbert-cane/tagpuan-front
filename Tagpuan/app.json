@@ -43,8 +43,24 @@
       "expo-font",
       "expo-secure-store",
       "@react-native-firebase/app",
-      "expo-build-properties",
-      "expo-updates"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "kotlinVersion": "2.1.0"
+          }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-5509684377946762~2636593580",
+          "iosAppId": "ca-app-pub-5509684377946762~2636593580"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -54,7 +70,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "a5b0ee61-493e-46d8-8851-c30de68209e2"
+        "projectId": "82611da3-73ab-4e1f-ad2e-73d135b1f6cd"
       }
     },
     "updates": {

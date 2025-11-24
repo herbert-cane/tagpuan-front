@@ -2,7 +2,7 @@ import { auth } from "@/firebaseConfig";
 import { PriceItem, PriceData, Category } from './PriceTypes';
 
 // Configuration
-const API_URL = "http://10.74.1.53:8080"; 
+const API_URL = process.env.EXPO_PUBLIC_API_URL; 
 
 // ✅ FIX: Explicitly type the return promise as HeadersInit
 const getAuthHeader = async (): Promise<HeadersInit> => {

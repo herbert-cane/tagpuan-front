@@ -9,7 +9,9 @@ import {
   TouchableOpacity 
 } from 'react-native';
 
-// ✅ UPDATED IMPORTS
+// ✅ KEEP ONLY FEED AD IMPORT
+import { AdMobFeedAd } from '../components/NewsFeed/AdMobFeed';
+
 import { useNewsfeed, FeedFilter } from '../components/NewsFeed/UseNewsFeed';
 import { PostCard } from '../components/NewsFeed/PostCard';
 import { CreatePost } from '../components/NewsFeed/CreatePost';
@@ -25,8 +27,8 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
     loading,
     refreshing,
     hasMore,
-    activeFilter, // Get active filter
-    setFilter,    // Get setter
+    activeFilter,
+    setFilter,
     loadPosts,
     addReaction,
     createPost,
@@ -57,7 +59,7 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
     );
   };
 
-  // ✅ Custom Tab Component
+  // Custom Tab Component
   const FeedFilterTabs = () => (
     <View style={styles.tabsContainer}>
       <TouchableOpacity 
@@ -98,17 +100,21 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <PostCard
-            post={item}
-            currentUser={currentUser}
-            onReaction={addReaction}
-          />
+        // ✅ LOGIC: Insert Feed Ad every 5 posts
+        renderItem={({ item, index }) => (
+          <View>
+            <PostCard
+              post={item}
+              currentUser={currentUser}
+              onReaction={addReaction}
+            />
+            {/* If the current index + 1 is divisible by 5, show the ad */}
+            {(index + 1) % 5 === 0 && <AdMobFeedAd />}
+          </View>
         )}
         
         ListHeaderComponent={
           <View style={styles.headerContainer}>
-            {/* ✅ Tabs at the top */}
             <FeedFilterTabs />
             <CreatePost currentUser={currentUser} onCreatePost={createPost} />
           </View>
@@ -135,6 +141,8 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
       />
+
+      {/* ❌ BANNER AD REMOVED FROM HERE */}
     </View>
   );
 };
@@ -150,7 +158,6 @@ const styles = StyleSheet.create({
   headerContainer: {
     marginBottom: 10,
   },
-  // ✅ Tab Styles
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: 'white',

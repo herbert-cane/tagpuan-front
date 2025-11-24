@@ -46,6 +46,7 @@
     "expo-status-bar": "~2.0.1",
     "expo-symbols": "~0.2.2",
     "expo-system-ui": "~4.0.9",
+    "expo-updates": "~0.27.4",
     "expo-web-browser": "~14.0.2",
     "jwt-decode": "^4.0.0",
     "react": "18.3.1",
@@ -53,6 +54,7 @@
     "react-hook-form": "^7.54.2",
     "react-native": "0.76.9",
     "react-native-gesture-handler": "~2.20.2",
+    "react-native-google-mobile-ads": "^16.0.0",
     "react-native-image-picker": "^8.2.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-paper": "^5.13.1",
@@ -65,7 +67,7 @@
     "react-native-webview": "13.12.5",
     "socket.io-client": "^4.8.1",
     "uuid": "^11.1.0",
-    "expo-updates": "~0.27.4"
+    "expo-dev-client": "~5.0.20"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

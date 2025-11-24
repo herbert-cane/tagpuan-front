@@ -3,7 +3,7 @@ import { Post, User, Reaction } from './NewsFeedtypes';
 
 // ---------------------- CONFIGURATION ----------------------
 // Ensure this matches your backend IP and Port
-const API_URL = "http://10.74.1.53:8080"; 
+const API_URL = process.env.EXPO_PUBLIC_API_URL; 
 
 // ---------------------- HELPERS ----------------------
 const getAuthHeader = async (): Promise<HeadersInit> => {
