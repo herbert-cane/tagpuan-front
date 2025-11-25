@@ -13,17 +13,26 @@ import {
   Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import theme from "../constants/theme";
+import { router, useLocalSearchParams } from "expo-router";
+import * as DocumentPicker from "expo-document-picker";
+
+// Firebase imports
 import { auth, db } from "@/firebaseConfig";
 import { collection, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
-import * as DocumentPicker from "expo-document-picker";
-import { useLocalSearchParams } from "expo-router";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-// ---------------------- CONFIGURATION ----------------------
-// FIX 1: Pointing to your specific local IP for phone testing
-const API_URL = "http://10.74.1.53:8080";
+// Custom imports
+import theme from "../constants/theme";
+
+// IMPORT API FUNCTIONS (Make sure the path points to your api.ts file)
+import { 
+  searchUsers, 
+  sendFriendRequest, 
+  acceptFriendRequest, 
+  rejectFriendRequest, 
+  getFriendRequests, 
+  getFriends 
+} from "../components/Friends/FriendsAPI"; // <--- CHANGE THIS PATH TO WHERE YOUR api.ts IS LOCATED
 
 // ---------------------- Types ----------------------
 interface UserLite {
@@ -75,7 +84,7 @@ const ProfilePage: React.FC = () => {
   const [selectedPaymentTerms, setSelectedPaymentTerms] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Friend system states (typed)
+  // Friend system states
   const [friends, setFriends] = useState<FriendUser[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [searchResults, setSearchResults] = useState<UserLite[]>([]);
@@ -93,7 +102,6 @@ const ProfilePage: React.FC = () => {
     { id: "delivery", name: "Delivery" },
   ];
 
-  // FIX 3: Fallback image to prevent crashes
   const defaultProfileImage = "https://placehold.co/100x100/DDB771/073B3A?text=User"; 
 
   const uploadImageAsync = async (uri: string, path: string) => {
@@ -108,7 +116,7 @@ const ProfilePage: React.FC = () => {
     return downloadURL;
   };
 
-  // ---------------------- Fetch user data ----------------------
+  // ---------------------- Fetch user data (Firestore) ----------------------
   useEffect(() => {
     const fetchUserData = async () => {
       setLoadingUser(true);
@@ -209,7 +217,6 @@ const ProfilePage: React.FC = () => {
       await updateDoc(userRef, updatedUser);
       setUserData(updatedUser);
       setIsEditing(false);
-      // Use replace to prevent stacking
       router.replace({ pathname: "/profilepage", params: { userId: uid, tab: "details" } });
     } catch (error) {
       console.error("Error updating user data:", error);
@@ -276,30 +283,11 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  // ---------------------- Friend system API helpers ----------------------
-  const getAuthToken = async (): Promise<string | undefined> => {
+  // ---------------------- Friend system HANDLERS ----------------------
+  
+  const fetchFriendsList = async (): Promise<void> => {
     try {
-      const token = await auth.currentUser?.getIdToken();
-      return token;
-    } catch (err) {
-      console.warn("Could not get auth token:", err);
-      return undefined;
-    }
-  };
-
-  const fetchFriends = async (): Promise<void> => {
-    try {
-      const token = await getAuthToken();
-      // FIX 2: Added /user prefix
-      const res = await fetch(`${API_URL}/user/friends/list`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        console.warn("fetchFriends failed", await res.text());
-        setFriends([]);
-        return;
-      }
-      const data: FriendUser[] = await res.json();
+      const data = await getFriends();
       setFriends(data || []);
     } catch (err) {
       console.error("Error fetching friends:", err);
@@ -307,19 +295,9 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const fetchFriendRequests = async (): Promise<void> => {
+  const fetchFriendRequestsList = async (): Promise<void> => {
     try {
-      const token = await getAuthToken();
-      // FIX 2: Added /user prefix
-      const res = await fetch(`${API_URL}/user/friends/requests`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        console.warn("fetchFriendRequests failed", await res.text());
-        setFriendRequests([]);
-        return;
-      }
-      const data: FriendRequest[] = await res.json();
+      const data = await getFriendRequests();
       setFriendRequests(data || []);
     } catch (err) {
       console.error("Error fetching friend requests:", err);
@@ -330,18 +308,7 @@ const ProfilePage: React.FC = () => {
   const handleSearchUsers = async (): Promise<void> => {
     if (searchQuery.length < 2) return;
     try {
-      const token = await getAuthToken();
-      const q = encodeURIComponent(searchQuery.trim());
-      // FIX 2: Added /user prefix and corrected route to /user/search
-      const res = await fetch(`${API_URL}/user/search?query=${q}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      if (!res.ok) {
-        console.warn("search users failed", await res.text());
-        setSearchResults([]);
-        return;
-      }
-      const data: UserLite[] = await res.json();
+      const data = await searchUsers(searchQuery.trim());
       setSearchResults(data || []);
     } catch (err) {
       console.error("Error searching users:", err);
@@ -351,85 +318,40 @@ const ProfilePage: React.FC = () => {
 
   const sendRequest = async (receiverId: string): Promise<void> => {
     try {
-      const token = await getAuthToken();
-      // FIX 2: Added /user prefix
-      const res = await fetch(`${API_URL}/user/friends/send`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ receiverId }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        console.warn("sendRequest failed:", errText);
-        Alert.alert("Error", "Could not send friend request.");
-        return;
-      }
+      await sendFriendRequest(receiverId);
       Alert.alert("Success", "Friend request sent!");
-    } catch (err) {
-      console.error("Error sending friend request:", err);
-      Alert.alert("Error", "Error sending friend request.");
+    } catch (err: any) {
+      console.warn("sendRequest failed:", err.response?.data || err.message);
+      Alert.alert("Error", "Could not send friend request.");
     }
   };
 
   const acceptRequest = async (requesterId: string): Promise<void> => {
     try {
-      const token = await getAuthToken();
-      // FIX 2: Added /user prefix
-      const res = await fetch(`${API_URL}/user/friends/accept`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ requesterId }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        console.warn("acceptRequest failed:", errText);
-        Alert.alert("Error", "Could not accept request.");
-        return;
-      }
+      await acceptFriendRequest(requesterId);
       // Refresh both lists
-      await Promise.all([fetchFriendRequests(), fetchFriends()]);
-    } catch (err) {
-      console.error("Error accepting request:", err);
-      Alert.alert("Error", "Error accepting request.");
+      await Promise.all([fetchFriendRequestsList(), fetchFriendsList()]);
+    } catch (err: any) {
+      console.warn("acceptRequest failed:", err.response?.data || err.message);
+      Alert.alert("Error", "Could not accept request.");
     }
   };
 
   const rejectRequest = async (requesterId: string): Promise<void> => {
     try {
-      const token = await getAuthToken();
-      // FIX 2: Added /user prefix
-      const res = await fetch(`${API_URL}/user/friends/reject`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ requesterId }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        console.warn("rejectRequest failed:", errText);
-        Alert.alert("Error", "Could not reject request.");
-        return;
-      }
-      await fetchFriendRequests();
-    } catch (err) {
-      console.error("Error rejecting request:", err);
-      Alert.alert("Error", "Error rejecting request.");
+      await rejectFriendRequest(requesterId);
+      await fetchFriendRequestsList();
+    } catch (err: any) {
+      console.warn("rejectRequest failed:", err.response?.data || err.message);
+      Alert.alert("Error", "Could not reject request.");
     }
   };
 
   // Fetch friend data when tab is opened
   useEffect(() => {
     if (activeTab === "friends") {
-      fetchFriends();
-      fetchFriendRequests();
+      fetchFriendsList();
+      fetchFriendRequestsList();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -445,7 +367,6 @@ const ProfilePage: React.FC = () => {
 
   const isOwnProfile = !userId || userId === auth.currentUser?.uid;
 
-  // FIX 3: Helper to safely get image source
   const getProfilePicSource = (uri?: string) => {
     return uri ? { uri } : { uri: defaultProfileImage };
   };
@@ -1233,8 +1154,6 @@ const styles = StyleSheet.create({
     fontFamily: "NovaSquare-Regular",
     lineHeight: 20,
   },
-
-  // ----- Friend styles -----
   friendRow: {
     flexDirection: "row",
     alignItems: "center",

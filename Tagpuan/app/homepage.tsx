@@ -11,8 +11,8 @@ import { ActivityIndicator } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { onAuthStateChanged, User } from "firebase/auth";
 import CompactPriceChecker from './PriceChecker';
-import { Newsfeed } from './NewsFeed'; // Import the newsfeed
-import { User as NewsfeedUser } from '../components/NewsFeed/NewsFeedtypes'; // Import the newsfeed user type
+import { Newsfeed } from './NewsFeed'; 
+import { User as NewsfeedUser } from '../components/NewsFeed/NewsFeedtypes'; 
 
 interface RecentExport {
   id: string;
@@ -23,6 +23,7 @@ interface RecentExport {
 interface UserData {
   role?: string;
   profile_picture?: string;
+  name?: string; // Added name based on usage in getNewsfeedUser
   [key: string]: any;
 }
 
@@ -37,16 +38,21 @@ export default function Homepage() {
   const FIREBASE_API = process.env.EXPO_PUBLIC_API_URL;
   const [showMore, setShowMore] = useState<boolean>(false);
   const [showPriceChecker, setShowPriceChecker] = useState<boolean>(false);
-  const [showNewsfeed, setShowNewsfeed] = useState<boolean>(false); // Add newsfeed state
+  const [showNewsfeed, setShowNewsfeed] = useState<boolean>(false); 
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
 
+  // ============================================================
+  // FIX: Updated fetch URL to match backend router.get("/me")
+  // ============================================================
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         try {
           const token = await user.getIdToken();
-          const response = await fetch(`${FIREBASE_API}/user/getDetails`, {
+          
+          // CHANGED FROM: /user/getDetails -> /user/me
+          const response = await fetch(`${FIREBASE_API}/user/me`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -60,6 +66,7 @@ export default function Homepage() {
           setLoadingUser(false);
         } catch (err) {
           console.error("Error fetching user data:", err);
+          // Optional: Add logic here to retry or handle error UI
           setTimeout(() => setLoadingUser(false), 500);
         }
       } else {
@@ -105,7 +112,6 @@ export default function Homepage() {
     setOnline();
   }, []);
 
-  // Convert your user data to newsfeed user format
   const getNewsfeedUser = (): NewsfeedUser => {
     return {
       id: auth.currentUser?.uid || 'current-user',
@@ -197,11 +203,9 @@ export default function Homepage() {
     );
   }
 
-  // If newsfeed is shown, display only the newsfeed
   if (showNewsfeed) {
     return (
       <View style={styles.fullScreen}>
-        {/* Newsfeed Header */}
         <View style={styles.newsfeedHeader}>
           <TouchableOpacity onPress={() => setShowNewsfeed(false)} style={styles.backButton}>
             <FontAwesome name="arrow-left" size={24} color="#DDB771" />
@@ -209,8 +213,6 @@ export default function Homepage() {
           <Text style={styles.newsfeedTitle}>Community Feed</Text>
           <View style={styles.placeholder} />
         </View>
-        
-        {/* Newsfeed Component */}
         <Newsfeed currentUser={getNewsfeedUser()} />
       </View>
     );
@@ -250,13 +252,11 @@ export default function Homepage() {
       <View style={styles.navContainer}>
         {renderRoleSpecificButtons()}
 
-        {/* NEWSFEED BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={() => setShowNewsfeed(true)}>
           <FontAwesome name="newspaper-o" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>FEED</Text>
         </TouchableOpacity>
 
-        {/* PRICE CHECKER BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={() => setShowPriceChecker(true)}>
           <FontAwesome name="line-chart" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>PRICES</Text>
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     fontFamily: 'NovaSquare-Regular',
   },
   placeholder: {
-    width: 24, // For balance
+    width: 24, 
   },
   header: {
     flexDirection: 'row',

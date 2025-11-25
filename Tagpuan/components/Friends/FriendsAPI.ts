@@ -1,39 +1,64 @@
+// api.ts
 import axios from "axios";
 import { auth } from "@/firebaseConfig";
 
+// 1. Log the URL to debug the 404
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+console.log("API BASE URL:", BASE_URL); 
+
 const api = axios.create({
-  baseURL: `${process.env.EXPO_PUBLIC_API_URL}/api`,  // ← change this
+  baseURL: BASE_URL,
 });
 
-// Add token if needed
 api.interceptors.request.use(async (config) => {
+  // 2. Log the full path being requested
+  const fullUrl = `${config.baseURL || ''}${config.url}`;
+  console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${fullUrl}`);
+  
   const token = await auth.currentUser?.getIdToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
+// ---------------------- API ROUTES ----------------------
+
 // SEARCH USERS
-export const searchUsers = (query: string) =>
-  api.get(`/users/search?query=${query}`).then(res => res.data);
+export const searchUsers = async (query: string) => {
+  const response = await api.get(`/user/search?query=${query}`);
+  return response.data;
+};
 
 // SEND REQUEST
-export const sendFriendRequest = (receiverId: string) =>
-  api.post(`/friends/send`, { receiverId }).then(res => res.data);
+export const sendFriendRequest = async (receiverId: string) => {
+  // Matches backend: router.post("/friends/send") inside app.use("/user")
+  const response = await api.post(`/user/friends/send`, { receiverId });
+  return response.data;
+};
 
 // ACCEPT REQUEST
-export const acceptFriendRequest = (requesterId: string) =>
-  api.post(`/friends/accept`, { requesterId }).then(res => res.data);
+export const acceptFriendRequest = async (requesterId: string) => {
+  const response = await api.post(`/user/friends/accept`, { requesterId });
+  return response.data;
+};
 
 // REJECT REQUEST
-export const rejectFriendRequest = (requesterId: string) =>
-  api.post(`/friends/reject`, { requesterId }).then(res => res.data);
+export const rejectFriendRequest = async (requesterId: string) => {
+  const response = await api.post(`/user/friends/reject`, { requesterId });
+  return response.data;
+};
 
 // GET FRIEND REQUESTS
-export const getFriendRequests = () =>
-  api.get(`/friends/requests`).then(res => res.data);
+export const getFriendRequests = async () => {
+  const response = await api.get(`/user/friends/requests`);
+  return response.data;
+};
 
 // GET FRIEND LIST
-export const getFriends = () =>
-  api.get(`/friends/list`).then(res => res.data);
+export const getFriends = async () => {
+  const response = await api.get(`/user/friends/list`);
+  return response.data;
+};
 
 export default api;

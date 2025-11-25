@@ -16,7 +16,7 @@ import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { auth } from '@/firebaseConfig';
 
 // Configuration
-const API_URL = "http://10.74.1.53:8080"; 
+const API_URL = "http://10.74.6.160:8080"; 
 
 export default function PriceAdmin() {
   const [items, setItems] = useState<PriceItem[]>([]);
