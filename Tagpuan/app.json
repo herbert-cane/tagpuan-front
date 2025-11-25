@@ -28,40 +28,26 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [
-      "expo-router",
-      "expo-updates",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      "expo-font",
-      "expo-secure-store",
-      "@react-native-firebase/app",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 34,
-            "buildToolsVersion": "34.0.0",
-            "kotlinVersion": "1.9.24"
-          }
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-5509684377946762~2636593580",
-          "iosAppId": "ca-app-pub-5509684377946762~2636593580"
-        }
-      ]
-    ],
+"plugins": [
+  [
+    "expo-build-properties",
+    {
+      "android": {
+        "compileSdkVersion": 35,
+        "targetSdkVersion": 34,
+        "buildToolsVersion": "35.0.0", 
+        "kotlinVersion": "1.9.10" 
+      }
+    }
+  ],
+  "expo-router",
+  "expo-updates",
+  ["expo-splash-screen", {"image": "./assets/images/splash-icon.png", "imageWidth": 200, "resizeMode": "contain", "backgroundColor": "#ffffff"}],
+  "expo-font",
+  "expo-secure-store",
+  "@react-native-firebase/app",
+  ["react-native-google-mobile-ads", {"androidAppId": "ca-app-pub-5509684377946762~2636593580", "iosAppId": "ca-app-pub-5509684377946762~2636593580"}]
+],
     "experiments": {
       "typedRoutes": true
     },

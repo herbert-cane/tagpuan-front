@@ -14,10 +14,12 @@ import CompactPriceChecker from './PriceChecker';
 import { Newsfeed } from './NewsFeed';
 import { User as NewsfeedUser } from '../components/NewsFeed/NewsFeedtypes';
 
-// ✅ ADMOB IMPORTS
+// ✅ 1. ADD ADMOB IMPORTS
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 
-// ✅ AD UNIT ID (Test ID for Dev, Real ID for Prod)
+// ✅ 2. DEFINE AD UNIT ID
+// 🔴 IMPORTANT: Use TestIds.BANNER for development.
+// Replace 'ca-app-pub-xxxx/yyyy' with your REAL ad unit ID for production builds.
 const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-5509684377946762/3359482462';
 
 interface RecentExport {
@@ -29,7 +31,6 @@ interface RecentExport {
 interface UserData {
   role?: string;
   profile_picture?: string;
-  name?: string;
   [key: string]: any;
 }
 
@@ -54,7 +55,7 @@ export default function Homepage() {
         try {
           const token = await user.getIdToken();
           
-          // ✅ FIX: Use correct endpoint /user/me
+          // 👇👇👇 CHANGED ENDPOINT HERE from /user/getDetails to /user/me 👇👇👇
           const response = await fetch(`${FIREBASE_API}/user/me`, {
             method: 'GET',
             headers: {
@@ -114,6 +115,7 @@ export default function Homepage() {
     setOnline();
   }, []);
 
+  // Convert your user data to newsfeed user format
   const getNewsfeedUser = (): NewsfeedUser => {
     return {
       id: auth.currentUser?.uid || 'current-user',
@@ -205,9 +207,11 @@ export default function Homepage() {
     );
   }
 
+  // If newsfeed is shown, display only the newsfeed
   if (showNewsfeed) {
     return (
       <View style={styles.fullScreen}>
+        {/* Newsfeed Header */}
         <View style={styles.newsfeedHeader}>
           <TouchableOpacity onPress={() => setShowNewsfeed(false)} style={styles.backButton}>
             <FontAwesome name="arrow-left" size={24} color="#DDB771" />
@@ -215,6 +219,8 @@ export default function Homepage() {
           <Text style={styles.newsfeedTitle}>Community Feed</Text>
           <View style={styles.placeholder} />
         </View>
+
+        {/* Newsfeed Component */}
         <Newsfeed currentUser={getNewsfeedUser()} />
       </View>
     );
@@ -227,6 +233,7 @@ export default function Homepage() {
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
     >
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push({ pathname: '/profilepage', params: { tab: 'posts' } })}>
           <Image
@@ -242,34 +249,41 @@ export default function Homepage() {
         </View>
       </View>
 
+      {/* Main Image */}
       <Image
         source={require('../assets/images/TagpuanCover3.jpg')}
         style={styles.mainImage}
         resizeMode="cover"
       />
 
+      {/* Navigation Icons */}
       <View style={styles.navContainer}>
         {renderRoleSpecificButtons()}
 
+        {/* NEWSFEED BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={() => setShowNewsfeed(true)}>
           <FontAwesome name="newspaper-o" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>FEED</Text>
         </TouchableOpacity>
 
+        {/* PRICE CHECKER BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={() => setShowPriceChecker(true)}>
           <FontAwesome name="line-chart" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>PRICES</Text>
         </TouchableOpacity>
 
+        {/* MESSAGE BUTTON */}
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/messagelistpage')}>
           <FontAwesome name="comments" size={28} color="#FFFFFF" />
           <Text style={styles.navText}>MESSAGE</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Hidden Buttons & See More Button */}
       <View>
         {showMore && (
           <View style={styles.hiddenButtonsContainer}>
+            {/* MARKET BUTTON - UPDATED WITH ALERT */}
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => Alert.alert("Notice", "Feature coming soon")}
@@ -280,6 +294,7 @@ export default function Homepage() {
 
             {renderHiddenButtons()}
 
+            {/* DASHBOARD BUTTON - MOVED HERE & UPDATED WITH ALERT */}
             <TouchableOpacity
               style={styles.navItem}
               onPress={() => Alert.alert("Notice", "Feature coming soon")}
@@ -299,6 +314,7 @@ export default function Homepage() {
         </View>
       </View>
 
+      {/* Recent Exports Section */}
       <View style={styles.recentExportsContainer}>
         <View style={styles.recentExportsHeader}>
           <Text style={styles.recentExportsTitle}>Recent Exports</Text>
@@ -319,15 +335,17 @@ export default function Homepage() {
         />
       </View>
 
+      {/* Price Checker Modal */}
       <CompactPriceChecker
         isVisible={showPriceChecker}
         onClose={() => setShowPriceChecker(false)}
       />
 
+      {/* ✅ 3. IMPLEMENT BANNER AD AT BOTTOM */}
       <View style={styles.bannerContainer}>
         <BannerAd
           unitId={adUnitId}
-          size={BannerAdSize.BANNER}
+          size={BannerAdSize.BANNER} // Standard small banner size (320x50)
           requestOptions={{
             requestNonPersonalizedAdsOnly: true,
           }}
@@ -367,7 +385,7 @@ const styles = StyleSheet.create({
     fontFamily: 'NovaSquare-Regular',
   },
   placeholder: {
-    width: 24,
+    width: 24, // For balance
   },
   header: {
     flexDirection: 'row',
@@ -446,7 +464,7 @@ const styles = StyleSheet.create({
   },
   recentExportsContainer: {
     marginTop: 20,
-    flex: 1,
+    flex: 1, // Added flex 1 here so the list takes available space, pushing ad to bottom
   },
   recentExportsHeader: {
     flexDirection: 'row',
@@ -499,9 +517,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#073B3A',
   },
+  // ✅ 4. ADD BANNER STYLES
   bannerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 10,
+    marginVertical: 10, // Give it a little space from the list and the bottom edge
   },
 });
