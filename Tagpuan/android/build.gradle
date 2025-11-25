@@ -6,16 +6,16 @@ buildscript {
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
-        kotlinVersion = findProperty('android.kotlinVersion') ?: '1.8.21'
+        kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.10' // ✅ Updated
         ndkVersion = "26.1.10909125"
-        agpVersion = '8.1.2' // <-- Added AGP version
+        agpVersion = '8.1.2' // ✅ This is correct
     }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:$agpVersion" // <-- Specify AGP version
+        classpath "com.android.tools.build:gradle:$agpVersion"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
         classpath 'com.google.gms:google-services:4.4.1'
         classpath 'com.facebook.react:react-native-gradle-plugin'
