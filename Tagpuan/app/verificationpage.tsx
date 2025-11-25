@@ -66,7 +66,7 @@ export default function VerificationPage() {
     const fetchUnverified = async () => {
       try {
         const token = await auth.currentUser?.getIdToken();
-        const response = await fetch(`${FIREBASE_API}/user/unverified`, {
+        const response = await fetch(`${FIREBASE_API}/user/admin/unverified`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -98,7 +98,7 @@ export default function VerificationPage() {
 
     try {
       const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${FIREBASE_API}/user/verify/${selectedApplicant.id}`, {
+      const response = await fetch(`${FIREBASE_API}/user/admin/verify/${selectedApplicant.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -124,7 +124,7 @@ export default function VerificationPage() {
 
     try {
       const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${FIREBASE_API}/user/reject/${selectedApplicant.id}`, {
+      const response = await fetch(`${FIREBASE_API}/user/admin/reject/${selectedApplicant.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
