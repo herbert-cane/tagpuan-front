@@ -54,7 +54,9 @@ export default function Homepage() {
       if (user) {
         try {
           const token = await user.getIdToken();
-          const response = await fetch(`${FIREBASE_API}/user/getDetails`, {
+          
+          // 👇👇👇 CHANGED ENDPOINT HERE from /user/getDetails to /user/me 👇👇👇
+          const response = await fetch(`${FIREBASE_API}/user/me`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
