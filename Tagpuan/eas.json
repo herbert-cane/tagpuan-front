@@ -9,12 +9,18 @@
       "distribution": "internal",
       "android": {
         "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-ceeredtwqa-as.a.run.app"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-ceeredtwqa-as.a.run.app"
       }
     },
     "production": {
@@ -23,7 +29,10 @@
       "android": {
         "image": "latest"
       },
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-ceeredtwqa-as.a.run.app"
+      }
     }
   },
   "submit": {
