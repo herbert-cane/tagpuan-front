@@ -55,11 +55,12 @@ allprojects {
 }
 
 // ✅ 4. INJECT MISSING RUNTIME DEPENDENCY
-// This automatically adds the runtime library to your app module so the compiler can find it.
+// We use 'withPlugin' instead of 'afterEvaluate' to avoid timing errors
 subprojects {
-    afterEvaluate { project ->
-        if (project.plugins.hasPlugin("com.android.application") || project.plugins.hasPlugin("com.android.library")) {
-            project.dependencies.add("implementation", "androidx.compose.runtime:runtime:1.6.0")
-        }
+    pluginManager.withPlugin("com.android.application") {
+        dependencies.add("implementation", "androidx.compose.runtime:runtime:1.6.0")
+    }
+    pluginManager.withPlugin("com.android.library") {
+        dependencies.add("implementation", "androidx.compose.runtime:runtime:1.6.0")
     }
 }
