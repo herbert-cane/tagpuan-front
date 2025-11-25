@@ -20,7 +20,7 @@ import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads'
 // ✅ 2. DEFINE AD UNIT ID
 // 🔴 IMPORTANT: Use TestIds.BANNER for development.
 // Replace 'ca-app-pub-xxxx/yyyy' with your REAL ad unit ID for production builds.
-const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-5509684377946762/3359482462';
+//const adUnitId = __DEV__ ? TestIds.BANNER : 'ca-app-pub-5509684377946762/3359482462';
 
 interface RecentExport {
   id: string;
@@ -342,7 +342,7 @@ export default function Homepage() {
       />
 
       {/* ✅ 3. IMPLEMENT BANNER AD AT BOTTOM */}
-      <View style={styles.bannerContainer}>
+      {/*<View style={styles.bannerContainer}>
         <BannerAd
           unitId={adUnitId}
           size={BannerAdSize.BANNER} // Standard small banner size (320x50)
@@ -350,7 +350,7 @@ export default function Homepage() {
             requestNonPersonalizedAdsOnly: true,
           }}
         />
-      </View>
+      </View>*/}
 
       <StatusBar style="auto" />
     </LinearGradient>

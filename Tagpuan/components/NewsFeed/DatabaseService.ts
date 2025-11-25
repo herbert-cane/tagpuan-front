@@ -24,14 +24,13 @@ export const DatabaseService = {
   
   /**
    * 1. GET POSTS (NEWS FEED)
-   * Fetches paginated posts and maps backend data to frontend types.
-   * ✅ UPDATED: Accepts 'filter' parameter ('all' or 'friends')
+   * FIXED: Correct endpoint is /posts/feed
    */
   getPosts: async (limit: number = 10, lastPostId?: string, filter: 'all' | 'friends' = 'all'): Promise<Post[]> => {
     try {
       const headers = await getAuthHeader();
       
-      // ✅ UPDATED: Build Query URL with limit, filter, and pagination
+      // ✅ CORRECT ENDPOINT: /posts/feed
       let url = `${API_URL}/posts/feed?limit=${limit}&filter=${filter}`;
       if (lastPostId) url += `&lastPostId=${lastPostId}`;
 
@@ -47,14 +46,12 @@ export const DatabaseService = {
       // Map Backend Data -> Frontend 'Post' Interface
       return posts.map((p: any) => ({
         id: p.id,
-        userId: p.authorId, // Top level userId if needed
+        userId: p.authorId,
         content: p.content,
-        image: p.mediaUrl,  // Backend calls it 'mediaUrl', Frontend 'image'
+        image: p.mediaUrl,
         timestamp: new Date(p.timestamp),
         reactions: p.reactions || [],
         shares: p.shareCount || 0,
-        
-        // Construct the user object manually to prevent crashes
         user: { 
             id: p.authorId,
             name: p.authorName || "Unknown User",
@@ -70,11 +67,13 @@ export const DatabaseService = {
 
   /**
    * 2. CREATE POST
+   * FIXED: Correct endpoint is /posts
    */
   createPost: async (postData: { content: string, mediaUrl?: string }): Promise<Post | null> => {
     try {
       const headers = await getAuthHeader();
       
+      // ✅ CORRECT ENDPOINT: /posts
       const res = await fetch(`${API_URL}/posts`, {
         method: "POST",
         headers,
@@ -108,10 +107,12 @@ export const DatabaseService = {
 
   /**
    * 3. ADD REACTION
+   * FIXED: Correct endpoint is /posts/:postId/react
    */
   addReaction: async (postId: string, userId: string, type: Reaction['type']): Promise<void> => {
     try {
       const headers = await getAuthHeader();
+      // ✅ CORRECT ENDPOINT: /posts/:postId/react
       await fetch(`${API_URL}/posts/${postId}/react`, {
         method: "POST",
         headers,
@@ -124,10 +125,12 @@ export const DatabaseService = {
 
   /**
    * 4. REMOVE REACTION
+   * FIXED: Correct endpoint is /posts/:postId/react
    */
   removeReaction: async (postId: string, userId: string): Promise<void> => {
     try {
       const headers = await getAuthHeader();
+      // ✅ CORRECT ENDPOINT: /posts/:postId/react
       await fetch(`${API_URL}/posts/${postId}/react`, {
         method: "DELETE",
         headers,
@@ -139,10 +142,12 @@ export const DatabaseService = {
 
   /**
    * 5. GET USER DETAILS
+   * FIXED: Correct endpoint is /user/:userId
    */
   getUser: async (userId: string): Promise<User | null> => {
     try {
       const headers = await getAuthHeader();
+      // ✅ CORRECT ENDPOINT: /user/:userId
       const res = await fetch(`${API_URL}/user/${userId}`, { headers });
       
       if (!res.ok) return null;

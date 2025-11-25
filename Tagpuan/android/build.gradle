@@ -6,7 +6,7 @@ buildscript {
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
-        kotlinVersion = '1.9.24' // ✅ FORCE Kotlin version
+        kotlinVersion = '1.9.24'
         ndkVersion = "26.1.10909125"
         agpVersion = '8.3.2'
     }
@@ -38,15 +38,5 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
-    }
-    
-    // ✅ MOVE the resolution strategy here, not in app/build.gradle
-    configurations.all {
-        resolutionStrategy {
-            force "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
-            force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
-            force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
-            force "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
-        }
     }
 }

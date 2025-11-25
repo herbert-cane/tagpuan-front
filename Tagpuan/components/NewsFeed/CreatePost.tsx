@@ -87,6 +87,7 @@ export const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onCreatePos
       finalImageUrl = uploadedUrl;
     }
 
+    // ✅ CORRECT: Call onCreatePost with proper parameters
     onCreatePost(content, finalImageUrl || undefined);
     
     setContent('');

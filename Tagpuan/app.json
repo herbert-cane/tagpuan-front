@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Tagpuan",
-    "slug": "Tagpuan",
+    "slug": "tagpuan",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/Tagpuan_Logo.png",
@@ -28,26 +28,40 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-"plugins": [
-  [
-    "expo-build-properties",
-    {
-      "android": {
-        "compileSdkVersion": 35,
-        "targetSdkVersion": 34,
-        "buildToolsVersion": "35.0.0", 
-        "kotlinVersion": "1.9.10" 
-      }
-    }
-  ],
-  "expo-router",
-  "expo-updates",
-  ["expo-splash-screen", {"image": "./assets/images/splash-icon.png", "imageWidth": 200, "resizeMode": "contain", "backgroundColor": "#ffffff"}],
-  "expo-font",
-  "expo-secure-store",
-  "@react-native-firebase/app",
-  ["react-native-google-mobile-ads", {"androidAppId": "ca-app-pub-5509684377946762~2636593580", "iosAppId": "ca-app-pub-5509684377946762~2636593580"}]
-],
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "1.9.10"
+          }
+        }
+      ],
+      "expo-router",
+      "expo-updates",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-font",
+      "expo-secure-store",
+      "@react-native-firebase/app",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-5509684377946762~2636593580",
+          "iosAppId": "ca-app-pub-5509684377946762~2636593580"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },
@@ -56,11 +70,12 @@
         "origin": false
       },
       "eas": {
-        "projectId": "82611da3-73ab-4e1f-ad2e-73d135b1f6cd"
+        "projectId": "f5edbf1f-46bd-48a0-af02-370841e6baa1"
       }
     },
     "updates": {
       "url": "https://u.expo.dev/a5b0ee61-493e-46d8-8851-c30de68209e2"
-    }
+    },
+    "owner": "tagpuantech"
   }
 }
