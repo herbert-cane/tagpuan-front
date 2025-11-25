@@ -1,3 +1,5 @@
+// Top-level build file
+
 buildscript {
     ext {
         buildToolsVersion = findProperty('android.buildToolsVersion') ?: '35.0.0'
@@ -5,9 +7,11 @@ buildscript {
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
         
-        // ✅ 1. Ensure these match
-        kotlinVersion = "1.9.24"
-        composeCompilerVersion = "1.5.14"
+        // ✅ 1. UPDATE TO MATCH YOUR ENVIRONMENT (Kotlin 1.9.25)
+        kotlinVersion = "1.9.25"
+        
+        // ✅ 2. UPDATE COMPILER TO MATCH KOTLIN 1.9.25
+        composeCompilerVersion = "1.5.15"
 
         ndkVersion = "26.1.10909125"
         agpVersion = '8.3.2'
@@ -40,10 +44,10 @@ allprojects {
         maven { url 'https://www.jitpack.io' }
     }
 
-    // ✅ 2. ADD THIS BLOCK TO FORCE THE COMPILER VERSION
+    // ✅ 3. FORCE THE NEW COMPILER VERSION (1.5.15)
     configurations.all {
         resolutionStrategy {
-            force "androidx.compose.compiler:compiler:1.5.14"
+            force "androidx.compose.compiler:compiler:1.5.15"
         }
     }
 }
