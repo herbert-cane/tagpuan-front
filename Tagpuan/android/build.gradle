@@ -44,10 +44,22 @@ allprojects {
         maven { url 'https://www.jitpack.io' }
     }
 
-    // ✅ 3. FORCE THE NEW COMPILER VERSION (1.5.15)
+    // ✅ 3. FORCE COMPILER AND RUNTIME VERSIONS
     configurations.all {
         resolutionStrategy {
             force "androidx.compose.compiler:compiler:1.5.15"
+            // Force runtime to 1.6.0 (Compatible with Compiler 1.5.15)
+            force "androidx.compose.runtime:runtime:1.6.0"
+        }
+    }
+}
+
+// ✅ 4. INJECT MISSING RUNTIME DEPENDENCY
+// This automatically adds the runtime library to your app module so the compiler can find it.
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.application") || project.plugins.hasPlugin("com.android.library")) {
+            project.dependencies.add("implementation", "androidx.compose.runtime:runtime:1.6.0")
         }
     }
 }
