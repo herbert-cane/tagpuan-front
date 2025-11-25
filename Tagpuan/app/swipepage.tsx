@@ -126,7 +126,7 @@ const SwipeCard: React.FC = () => {
 
         const token = await user.getIdToken();
 
-        const response = await fetch(`${FIREBASE_API}/user/farmers`, {
+        const response = await fetch(`${FIREBASE_API}/user/role/farmers`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,

@@ -165,6 +165,23 @@ export const DatabaseService = {
       return null; 
     }
   },
+  deletePost: async (postId: string): Promise<void> => {
+    try {
+      const headers = await getAuthHeader();
+      
+      const response = await fetch(`${API_URL}/posts/${postId}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete post");
+      }
+    } catch (error) {
+      console.error("Error in deletePost:", error);
+      throw error;
+    }
+  },
 
   initializeWithMockData: () => { console.log("Mock data disabled"); }
 };

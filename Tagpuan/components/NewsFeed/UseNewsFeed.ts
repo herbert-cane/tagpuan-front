@@ -111,6 +111,19 @@ export const useNewsfeed = (currentUserId: string) => {
       console.error('Error creating post:', error);
     }
   };
+  const deletePost = async (postId: string) => {
+    // 1. Optimistic Update: Remove it from the screen immediately
+    setPosts(prev => prev.filter(p => p.id !== postId));
+
+    try {
+      // 2. Call the API
+      await DatabaseService.deletePost(postId);
+    } catch (error) {
+      console.error("Failed to delete, reverting", error);
+      // Optional: Reload posts if it failed to resync state
+      loadPosts(true); 
+    }
+  };
 
   return {
     posts,
@@ -123,6 +136,7 @@ export const useNewsfeed = (currentUserId: string) => {
     addReaction,
     removeReaction,
     createPost,
+    deletePost,
     refresh: () => loadPosts(true)
   };
 };

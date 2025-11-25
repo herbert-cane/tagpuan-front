@@ -15,16 +15,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import theme from "../constants/theme";
 import { auth, db } from "@/firebaseConfig";
-import { collection, doc, getDoc, onSnapshot, updateDoc, query, where, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
+// ✅ Added deleteDoc
+import { collection, doc, getDoc, onSnapshot, updateDoc, query, where, orderBy, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams } from "expo-router";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-// ✅ IMPORT CONFIG
-//import { API_URL } from "../constants/config";
+// ✅ Added Icon
+import { FontAwesome } from '@expo/vector-icons';
 
 // ---------------------- CONFIGURATION ----------------------
-// API_URL imported from config
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
 interface UserLite {
   id: string;
   first_name: string;
@@ -205,6 +206,31 @@ const ProfilePage: React.FC = () => {
       await updateDoc(userRef, { certifications: updatedCerts });
     } catch (error) { console.error(error); } 
     finally { setUploading(false); }
+  };
+
+  // ✅ NEW: Delete Post Function
+  const handleDeletePost = async (postId: string) => {
+    Alert.alert(
+      "Delete Post",
+      "Are you sure you want to delete this post?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Delete from Firestore
+              await deleteDoc(doc(db, "posts", postId));
+              // Note: The onSnapshot listener in useEffect will automatically update the list
+            } catch (error) {
+              console.error("Error deleting post:", error);
+              Alert.alert("Error", "Failed to delete post. Please try again.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const getAuthToken = async () => { try { return await auth.currentUser?.getIdToken(); } catch(e) { return undefined; }};
@@ -472,26 +498,35 @@ const ProfilePage: React.FC = () => {
               <Text style={styles.noPosts}>No posts yet.</Text>
             ) : (
               <View style={styles.postGrid}>
-                {userPosts.map((post, index) => {
-                    if (post.mediaUrl) {
-                        return (
-                            <TouchableOpacity key={index} onPress={() => setSelectedImage(post.mediaUrl || "")}>
-                                <Image source={{ uri: post.mediaUrl }} style={styles.postImage} />
-                            </TouchableOpacity>
-                        );
-                    }
-                    return (
-                        <View key={index} style={[styles.postImage, { backgroundColor: '#fff', justifyContent: 'center', padding: 5 }]}>
-                            <Text numberOfLines={3} style={{ fontSize: 10, color: '#333' }}>{post.content}</Text>
-                        </View>
-                    );
-                })}
+                {userPosts.map((post) => (
+                  <View key={post.id} style={styles.postWrapper}>
+                    {post.mediaUrl ? (
+                      <TouchableOpacity onPress={() => setSelectedImage(post.mediaUrl || "")}>
+                        <Image source={{ uri: post.mediaUrl }} style={styles.postImage} />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={[styles.postImage, { backgroundColor: '#fff', justifyContent: 'center', padding: 5 }]}>
+                        <Text numberOfLines={3} style={{ fontSize: 10, color: '#333' }}>{post.content}</Text>
+                      </View>
+                    )}
+
+                    {/* ✅ DELETE BUTTON */}
+                    {isOwnProfile && (
+                        <TouchableOpacity 
+                            style={styles.deletePostButton}
+                            onPress={() => handleDeletePost(post.id)}
+                        >
+                            <FontAwesome name="trash" size={14} color="#fff" />
+                        </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
           </>
         ) : (
           <>
-            {/* ✅ RESTORED: FRIEND REQUESTS */}
+            {/* FRIEND REQUESTS */}
             <View style={{ marginTop: 10, marginBottom: 12 }}>
               <Text style={styles.detailsTitle}>Friend Requests</Text>
             </View>
@@ -515,7 +550,7 @@ const ProfilePage: React.FC = () => {
               ))
             )}
 
-            {/* ✅ RESTORED: FRIENDS LIST */}
+            {/* FRIENDS LIST */}
             <View style={{ marginTop: 18, marginBottom: 12 }}>
               <Text style={styles.detailsTitle}>Friends</Text>
             </View>
@@ -533,7 +568,7 @@ const ProfilePage: React.FC = () => {
               ))
             )}
 
-            {/* ✅ RESTORED: SEARCH USERS SECTION */}
+            {/* SEARCH USERS SECTION */}
             <View style={{ marginTop: 18 }}>
               <Text style={styles.detailsTitle}>Search Users</Text>
             </View>
@@ -619,7 +654,17 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: "#DDB771" },
   tabText: { color: "#FFFFFF", fontSize: 14, fontFamily: "NovaSquare-Regular" },
   postGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  postWrapper: { position: 'relative' }, // ✅ Container for relative positioning
   postImage: { width: 100, height: 100, borderRadius: 8, backgroundColor: "#eee" },
+  deletePostButton: { // ✅ Style for delete button
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 6,
+    borderRadius: 15,
+    zIndex: 10,
+  },
   certGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 10 },
   certImage: { width: 100, height: 100, borderRadius: 8, backgroundColor: "#ccc" },
   dropdownItem: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: "#08A045" },

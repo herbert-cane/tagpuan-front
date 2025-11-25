@@ -113,8 +113,8 @@ const Register = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const frontIDRef = ref(storage, `users/${user.uid}/frontID.jpg`);
-      const backIDRef = ref(storage, `users/${user.uid}/backID.jpg`);
+      const frontIDRef = ref(storage, `user/${user.uid}/frontID.jpg`);
+      const backIDRef = ref(storage, `user/${user.uid}/backID.jpg`);
 
       await uploadBytes(frontIDRef, frontIDBlob);
       await uploadBytes(backIDRef, backIDBlob);

@@ -38,6 +38,33 @@ const handleLogin = async () => {
 
   try {
     await signInWithEmailAndPassword(auth, username, password);
+    
+    // The onAuthStateChanged listener in your Homepage will handle the redirect
+    // No need for additional logic here
+    
+  } catch (error: any) {
+    console.error("Login error:", error);
+    let errorMessage = "Invalid email or password.";
+    
+    if (error.code === 'auth/invalid-email') {
+      errorMessage = "Invalid email address.";
+    } else if (error.code === 'auth/user-not-found') {
+      errorMessage = "No account found with this email.";
+    } else if (error.code === 'auth/wrong-password') {
+      errorMessage = "Incorrect password.";
+    } else if (error.code === 'auth/network-request-failed') {
+      errorMessage = "Network error. Please check your internet connection.";
+    }
+    
+    Alert.alert("Login Failed", errorMessage);
+  } finally {
+    setLoading(false);
+  }
+
+  setLoading(true);
+
+  try {
+    await signInWithEmailAndPassword(auth, username, password);
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {

@@ -32,8 +32,14 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
     loadPosts,
     addReaction,
     createPost,
-    refresh
+    refresh,
+    deletePost
   } = useNewsfeed(currentUser.id);
+
+  const handleDeletePost = async (postId: string) => {
+    // The hook now handles the API call and the UI update
+    await deletePost(postId);
+  };
 
   const renderFooter = () => {
     if (!loading || refreshing) return null;
@@ -107,6 +113,7 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
               post={item}
               currentUser={currentUser}
               onReaction={addReaction}
+              onDelete={handleDeletePost}
             />
             {/* If the current index + 1 is divisible by 5, show the ad */}
             {/*(index + 1) % 5 === 0 && <AdMobFeedAd />*/}

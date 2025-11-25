@@ -87,7 +87,7 @@ export default function BiddingDashboard() {
             let winning_bid = null;
             if (request.status !== "Up for Bidding") {
 
-              const winRes = await fetch(`${FIREBASE_API}/request/get-winning-bid/${request.id}`, {
+              const winRes = await fetch(`${FIREBASE_API}/request/winning-bid/${request.id}`, {
                 headers: {
                   'Authorization': `Bearer ${token}`,
                   'Content-Type': 'application/json',
@@ -125,9 +125,7 @@ export default function BiddingDashboard() {
       if (!user) throw new Error('User not authenticated');
       const token = await user.getIdToken();
       // The backend expects reqId as a URL param and bidId in the body
-      const response = await fetch(
-      `${FIREBASE_API}/request/set-winning-bid/${requestId}`,
-      {
+      const response = await fetch(`${FIREBASE_API}/request/winning-bid/${requestId}`, {
         method: 'PUT',
         headers: {
         'Authorization': `Bearer ${token}`,
@@ -160,7 +158,7 @@ export default function BiddingDashboard() {
       const token = await auth.currentUser?.getIdToken();
       const base64Image = Buffer.from(image).toString("base64");
 
-      const response = await fetch(`${FIREBASE_API}/conversation/create/${userId}`, {
+      const response = await fetch(`${FIREBASE_API}/conversation/${userId}`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
