@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 
 // ✅ KEEP ONLY FEED AD IMPORT
-//import { AdMobFeedAd } from '../components/NewsFeed/AdMobFeed';
+import { AdMobFeedAd } from '../components/NewsFeed/AdMobFeed';
 
 import { useNewsfeed, FeedFilter } from '../components/NewsFeed/UseNewsFeed';
 import { PostCard } from '../components/NewsFeed/PostCard';
@@ -116,7 +116,7 @@ export const Newsfeed: React.FC<NewsfeedProps> = ({ currentUser }) => {
               onDelete={handleDeletePost}
             />
             {/* If the current index + 1 is divisible by 5, show the ad */}
-            {/*(index + 1) % 5 === 0 && <AdMobFeedAd />*/}
+            {(index + 1) % 5 === 0 && <AdMobFeedAd />}
           </View>
         )}
         
