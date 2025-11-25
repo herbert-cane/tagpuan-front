@@ -94,6 +94,27 @@ android {
         versionCode 1
         versionName "1.0.0"
     }
+    
+    // ADD THIS SECTION - Enable Compose features
+    buildFeatures {
+        compose true
+    }
+    
+    // KEEP THIS - Compose compiler configuration
+    composeOptions {
+        kotlinCompilerExtensionVersion = '1.6.0'
+    }
+    
+    // ADD THIS SECTION - Kotlin compile options
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
