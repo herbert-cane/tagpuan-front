@@ -17,10 +17,12 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
+  Image,
   ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 
+const logoImageSource = require("../assets/images/Tagpuan_Login.png");
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -93,11 +95,14 @@ const handleLogin = async () => {
         >
           <ScrollView contentContainerStyle={styles.scrollContainer}>
             <View style={styles.container}>
-              <Text style={styles.logo}>tagpuan</Text>
-              <Text style={styles.tagline}>
-                for a better farming ecosystem{"\n"}in the Philippines{"\n"}
-              </Text>
-
+              <Image
+                source={logoImageSource}
+                style={styles.mainLogoImage}
+                resizeMode="contain" // Ensures the image doesn't look stretched
+              />
+  <Text style={styles.tagline}>
+    for a better farming ecosystem{"\n"}in the Philippines
+  </Text>
               {/* Email Input */}
               <View style={styles.inputContainer}>
                 <Ionicons name="mail" size={20} color="#DDB771" style={styles.icon} />
@@ -181,86 +186,110 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: 24,
   },
-  logo: {
-    fontSize: 71,
-    fontFamily: theme.fonts.regular,
-    color: "#DDB771",
-    letterSpacing: 3,
-    opacity: 0.7,
+  mainLogoImage: {
+    width: "85%", // Made slightly wider for better visibility
+    height: undefined, // Allows aspect ratio to take over
+    aspectRatio: 2, // Maintains the shape dynamically (Adjust this number if your logo is taller/shorter)
+    marginBottom: 10,
+    marginTop: 30,
   },
   tagline: {
-    marginTop: 20,
-    fontSize: 14,
+    marginTop: 0,
+    fontSize: 15,
     textAlign: "center",
     color: "#FFFFFF",
-    marginBottom: 30,
+    marginBottom: 40,
+    lineHeight: 22,
+    opacity: 0.9,
+    fontWeight: "400",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingHorizontal: 25,
-    marginVertical: 10,
-    width: "90%",
+    borderRadius: 30, // Fully rounded pill shape
+    paddingHorizontal: 20,
+    marginVertical: 8,
+    width: "100%",
+    height: 55, // Taller inputs for modern feel
+    // Shadow for depth
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   icon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    height: 50,
-    fontSize: 18,
-    color: "#6BBF59",
+    height: "100%",
+    fontSize: 16,
+    color: "#073B3A", // Dark green text for better contrast
   },
   optionsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "90%",
-    marginBottom: 20,
+    justifyContent: "flex-start", // Align to left like standard forms
+    width: "100%",
+    marginBottom: 25,
+    marginTop: 10,
+    paddingHorizontal: 10,
   },
   rememberMe: {
     flexDirection: "row",
     alignItems: "center",
   },
   optionText: {
-    color: theme.colors.text,
-    marginLeft: 5,
+    color: "#FFFFFF",
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
   },
   footer: {
-    flex: 0.4,
-    justifyContent: "flex-end",
+    width: "100%",
     alignItems: "center",
-    width: "80%",
-    marginBottom: 30,
+    marginTop: 10,
+    marginBottom: 20,
   },
   loginButton: {
-    fontFamily: theme.fonts.regular,
-    backgroundColor: "rgba(221, 183, 113, 0.7)",
-    borderRadius: 45,
-    paddingVertical: 10,
-    paddingHorizontal: 35,
-    marginBottom: 10,
+    backgroundColor: "#DDB771",
+    borderRadius: 30,
+    paddingVertical: 15, // Taller button
+    width: "100%", // Full width button
     alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+    // Button Shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 6,
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   loginText: {
     color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "bold",
+    letterSpacing: 1.5,
   },
   signupText: {
-    color: theme.colors.text,
-    marginTop: 60,
+    color: "#FFFFFF", // Changed to white for better visibility on gradient
+    marginTop: 20,
+    fontSize: 14,
+    opacity: 0.9,
   },
   signupLink: {
     color: "#FFFFFF",
     textDecorationLine: "underline",
-    marginTop: 10,
+    marginTop: 8,
+    fontWeight: "bold",
+    fontSize: 16,
   },
   loadingContainer: {
     flex: 1,

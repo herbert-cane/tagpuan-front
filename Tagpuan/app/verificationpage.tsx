@@ -99,7 +99,7 @@ export default function VerificationPage() {
     try {
       const token = await auth.currentUser?.getIdToken();
       const response = await fetch(`${FIREBASE_API}/user/admin/verify/${selectedApplicant.id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ export default function VerificationPage() {
     try {
       const token = await auth.currentUser?.getIdToken();
       const response = await fetch(`${FIREBASE_API}/user/admin/reject/${selectedApplicant.id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
